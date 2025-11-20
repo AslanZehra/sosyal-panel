@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+{% block title %}Taslaklar | MySocial{% endblock %}
+{% block content %}
+
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <div class="logo-pill">MySocial</div>
+      <h1 class="page-title">Taslaklar</h1>
+      <p class="page-subtitle">
+        Hazırlayıp kaydettiğin tüm gönderi taslaklarını burada görürsün.
+      </p>
+    </div>
+
+    <nav class="page-nav">
+      <a href="{{ url_for('prepare') }}" class="pill-link">Ana Sayfa</a>
+      <a href="{{ url_for('drafts') }}" class="pill-link pill-link-active">Taslaklar</a>
+      <a href="{{ url_for('multi') }}" class="pill-link">Multi-Post Beta</a>
+    </nav>
+  </header>
+
+  <main class="page-main">
+    {% if drafts and drafts|length > 0 %}
+      <div class="draft-list">
+        {% for d in drafts %}
+          <article class="draft-card">
+            <header class="draft-header">
+              <div class="draft-meta">
+                <span class="draft-id">#{{ d.id }}</span>
+                <span class="draft-date">{{ d.ts }}</span>
+
+                {% if d.schedule_mode == 'later' and d.scheduled_at %}
+                  <span class="pill-soft">Planlı: {{ d.scheduled_at }}</span>
+                {% else %}
+                  <span class="pill-soft">Şimdi paylaş</span>
+                {% endif %}
+              </div>
+
+              <div class="draft-platforms">
+                {% for p in d.platforms %}
+                  <span class="pill-soft">{{ p }}</span>
+                {% endfor %}
+              </div>
+            </header>
+
+            <p class="draft-text">{{ d.text }}</p>
+
+            {% if d.media_files and d.media_files|length > 0 %}
+              <div class="field" style="margin-top:8px;">
+                <div class="field-label" style="font-size:11px; color:#9ca3af; margin-bottom:4px;">
+                  Medya dosyaları
+                </div>
+                <div class="chip-row">
+                  {% for f in d.media_files %}
+                    <span class="pill-soft">{{ f }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+            <a href="{{ url_for('edit_draft', draft_id=d.id) }}"
+               class="pill-link"
+               style="margin-top:10px; display:inline-block;">
+              Düzenle
+            </a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        Henüz kaydedilmiş taslak yok. Önce bir gönderiyi taslak olarak kaydet. 💜
+      </div>
+    {% endif %}
+  </main>
+</div>
+
+{% endblock %}

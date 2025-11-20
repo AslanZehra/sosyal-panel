@@ -1,0 +1,70 @@
+[
+  {
+    "title": "tatilllllll",
+    "content": "yurtdışı tatili",
+    "platforms": [
+      "Instagram",
+      "Facebook",
+      "X",
+      "TikTok",
+      "YouTube Shorts",
+      "WhatsApp"
+    ],
+    "schedule_date": "",
+    "schedule_time": "",
+    "format": "Dikey Video – Reels/TikTok/Shorts",
+    "media": "IMG_8474.jpeg",
+    "id": 3
+  },
+  {
+    "title": "Başlıksız Gönderi",
+    "content": "a",
+    "platforms": [
+      "Instagram",
+      "YouTube Shorts"
+    ],
+    "schedule_date": "",
+    "schedule_time": "",
+    "format": "Dikey Video – Reels/TikTok/Shorts",
+    "media": "Yüklenmedi",
+    "id": 4
+  },
+  {
+    "title": "Başlıksız Gönderi",
+    "content": "aaa",
+    "platforms": [
+      "Instagram"
+    ],
+    "schedule_date": "",
+    "schedule_time": "",
+    "format": "Dikey Video – Reels/TikTok/Shorts",
+    "media": "Yüklenmedi",
+    "id": 5
+  },
+  {
+    "id": 1,
+    "text": "ccc",
+    "platforms": [
+      "facebook",
+      "x"
+    ],
+    "mode": "now",
+    "scheduleTime": null,
+    "format": "short-reels",
+    "scale": "9:16"
+  },
+  {
+    "id": 2,
+    "text": "bebek",
+    "platforms": [
+      "instagram",
+      "facebook",
+      "x"
+    ],
+    "mode": "now",
+    "scheduleTime": null,
+    "format": "short-reels",
+    "scale": "9:16",
+    "media": []
+  }
+]

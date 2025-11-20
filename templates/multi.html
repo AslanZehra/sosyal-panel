@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}Multi-Post Beta | MySocial{% endblock %}
+{% block content %}
+
+<div class="page-shell">
+  <header class="page-header">
+    <div>
+      <div class="logo-pill">MySocial</div>
+      <h1 class="page-title">Multi-Post Beta</h1>
+      <p class="page-subtitle">
+        İleride aynı anda birden çok gönderi hazırlayıp yöneteceğimiz ekran.
+      </p>
+    </div>
+
+    <nav class="page-nav">
+      <a href="{{ url_for('prepare') }}" class="pill-link">Ana Sayfa</a>
+      <a href="{{ url_for('drafts') }}" class="pill-link">Taslaklar</a>
+      <a href="{{ url_for('multi') }}" class="pill-link pill-link-active">Multi-Post Beta</a>
+    </nav>
+  </header>
+
+  <main class="page-main">
+    <div class="empty-state">
+      Multi-Post ekranı henüz hazır değil. Şimdilik ana ekrandan devam edebilirsin. ✨
+    </div>
+  </main>
+</div>
+
+{% endblock %}

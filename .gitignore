@@ -1,0 +1,16 @@
+# Python / Flask
+__pycache__/
+*.pyc
+
+# Virtualenv
+venv/
+.venv/
+
+# MacOS gereksiz dosyalar
+.DS_Store
+
+# Editor ayarları
+.vscode/
+
+# Local veritabanı
+app.db
