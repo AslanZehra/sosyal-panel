@@ -1,0 +1,162 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="form-card">
+
+    <h1 class="page-title" data-i18n="page_prepare_title">Gönderiyi Hazırla</h1>
+    <p class="page-desc" data-i18n="page_prepare_desc">
+        Metni yaz, platform ve format seç, medyayı ekle ve istersen plana al.
+        Ölçek (aspect ratio) bilgisi seçtiğin format ve platformlara göre otomatik önerilir.
+    </p>
+
+    <!-- Gönderi metni -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_post_text">Gönderi Metni</label>
+        <textarea
+            id="post-text"
+            name="post_text"
+            class="input textarea"
+            rows="4"
+            data-i18n-placeholder="placeholder_post_text"
+            placeholder="Metnini buraya yaz..."
+        >{{ default_text or "" }}</textarea>
+
+        <div style="margin-top:8px;">
+            <button
+                type="button"
+                class="btn neon-btn"
+                id="btn-ai-text"
+                data-i18n="btn_ai_text"
+            >
+                ⚡ Yapay Zeka ile Metin Öner
+            </button>
+        </div>
+    </div>
+
+    <!-- Hashtagler -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_hashtags">Hashtagler</label>
+        <textarea
+            id="hashtags"
+            name="hashtags"
+            class="input textarea"
+            rows="3"
+            data-i18n-placeholder="placeholder_hashtags"
+            placeholder="#hedefler #mutluluk #bugün..."
+        >{{ default_hashtags or "" }}</textarea>
+
+        <div style="margin-top:8px;">
+            <button
+                type="button"
+                class="btn neon-btn"
+                id="btn-ai-hashtag"
+                data-i18n="btn_ai_hashtag"
+            >
+                ⚡ # Hashtag Öner
+            </button>
+        </div>
+    </div>
+
+    <!-- Platformlar -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_platforms">Platformlar</label>
+        <div class="pill-group">
+            <label class="pill">
+                <input type="checkbox" name="platforms" value="instagram">
+                <span>Instagram</span>
+            </label>
+            <label class="pill">
+                <input type="checkbox" name="platforms" value="facebook">
+                <span>Facebook</span>
+            </label>
+            <label class="pill">
+                <input type="checkbox" name="platforms" value="x">
+                <span>X (Twitter)</span>
+            </label>
+            <label class="pill">
+                <input type="checkbox" name="platforms" value="youtube">
+                <span>YouTube</span>
+            </label>
+            <label class="pill">
+                <input type="checkbox" name="platforms" value="tiktok">
+                <span>TikTok</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Format -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_format">Format</label>
+        <div class="pill-group">
+            <label class="pill">
+                <input type="radio" name="format" value="normal" checked>
+                <span data-i18n="format_normal">Normal Gönderi</span>
+            </label>
+            <label class="pill">
+                <input type="radio" name="format" value="short">
+                <span data-i18n="format_short">Short / Reels</span>
+            </label>
+            <label class="pill">
+                <input type="radio" name="format" value="story">
+                <span data-i18n="format_story">Story</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Ölçek bilgisi + rozetler -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_aspect_title">Ölçek Bilgisi</label>
+        <p class="helper-text" data-i18n="text_aspect_info">
+            Seçtiğin platform ve formata göre sistem otomatik bir aspect ratio (1:1, 4:5, 9:16, 16:9) önerir ve gönderi kaydına ekler.
+            Zamanlanmış gönderilerde de aynı şekilde kullanılır.
+        </p>
+
+        <div class="aspect-badge-group">
+            <div class="aspect-badge">1 : 1</div>
+            <div class="aspect-badge">4 : 5</div>
+            <div class="aspect-badge">9 : 16</div>
+            <div class="aspect-badge">16 : 9</div>
+        </div>
+    </div>
+
+    <!-- Medya -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_media">Medya Ekle</label>
+        <input type="file" name="media" id="media-input" class="input file-input" multiple>
+    </div>
+
+    <!-- Zamanlama -->
+    <div class="form-row">
+        <label class="form-label" data-i18n="label_schedule">Zamanlama</label>
+        <input
+            type="datetime-local"
+            name="schedule_at"
+            id="schedule-at"
+            class="input"
+        >
+    </div>
+
+    <!-- Butonlar -->
+    <div class="form-actions">
+        <button
+            type="button"
+            class="btn ghost-btn"
+            id="btn-save-draft"
+            data-i18n="btn_save_draft"
+        >
+            Taslak Olarak Kaydet
+        </button>
+
+        <button
+            type="submit"
+            class="btn primary-btn"
+            id="btn-submit-post"
+            data-i18n="btn_submit_now"
+        >
+            Gönderiyi Oluştur
+        </button>
+    </div>
+
+</div>
+
+{% endblock %}

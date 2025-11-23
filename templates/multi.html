@@ -1,29 +1,42 @@
-{% extends "layout.html" %}
-{% block title %}Multi-Post Beta | MySocial{% endblock %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>MySocial Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="app-body">
 
-<div class="page-shell">
-  <header class="page-header">
-    <div>
-      <div class="logo-pill">MySocial</div>
-      <h1 class="page-title">Multi-Post Beta</h1>
-      <p class="page-subtitle">
-        İleride aynı anda birden çok gönderi hazırlayıp yöneteceğimiz ekran.
-      </p>
-    </div>
+<div class="app-shell">
 
-    <nav class="page-nav">
-      <a href="{{ url_for('prepare') }}" class="pill-link">Ana Sayfa</a>
-      <a href="{{ url_for('drafts') }}" class="pill-link">Taslaklar</a>
-      <a href="{{ url_for('multi') }}" class="pill-link pill-link-active">Multi-Post Beta</a>
-    </nav>
-  </header>
+    <header class="app-header">
+        <div class="app-logo">
+            <span class="logo-dot"></span>
+            <span data-i18n="app_title">MySocial Panel</span>
+        </div>
 
-  <main class="page-main">
-    <div class="empty-state">
-      Multi-Post ekranı henüz hazır değil. Şimdilik ana ekrandan devam edebilirsin. ✨
-    </div>
-  </main>
+        <nav class="app-nav">
+            <a href="/" class="top-link" data-i18n="nav_home">Ana Sayfa</a>
+            <a href="/create" class="top-link" data-i18n="nav_create">Gönderi Oluştur</a>
+            <a href="/tasks" class="top-link" data-i18n="nav_scheduled">Zamanlanmış</a>
+            <a href="/drafts" class="top-link" data-i18n="nav_drafts">Hazırlananlar</a>
+        </nav>
+
+        <div class="lang-switcher">
+            <label for="lang-select" class="lang-label" data-i18n="lang_label">Dil</label>
+            <select id="lang-select" onchange="changeLanguage(this)">
+                <option value="tr">TR</option>
+                <option value="en">EN</option>
+            </select>
+        </div>
+    </header>
+
+    {% block content %}{% endblock %}
+
 </div>
 
-{% endblock %}
+<script src="{{ url_for('static', filename='translations.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

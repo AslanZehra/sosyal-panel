@@ -1,162 +1,133 @@
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("app.js yüklendi ✅");
+// static/app.js
 
-    const textInput = document.querySelector("#postText");
-    const platformCheckboxes = document.querySelectorAll(
-        "input[type='checkbox'][name='platforms']"
-    );
+// --------------------------------------------------
+// Yardımcı: mevcut dili bul
+// --------------------------------------------------
+function getCurrentLang() {
+    const htmlTag = document.documentElement;
+    return htmlTag.getAttribute("lang") || "tr";
+}
 
-    const scheduleRadios = document.querySelectorAll("input[name='scheduleMode']");
-    const scheduledAtInput = document.querySelector("input[name='scheduled_at']");
-    const mediaInput = document.getElementById("mediaInput");
+// Formdaki seçili platformları oku
+function getSelectedPlatforms() {
+    const checked = Array.from(document.querySelectorAll('input[name="platforms"]:checked'));
+    return checked.map(el => el.value);
+}
 
-    const allButtons = Array.from(document.querySelectorAll("button"));
-    const saveDraftBtn = allButtons.find(btn =>
-        btn.textContent.trim().includes("Taslak Olarak Kaydet")
-    );
-    const prepareBtn = allButtons.find(btn =>
-        btn.textContent.trim().includes("Gönderiyi Hazırla")
-    );
+// Küçük helper: API çağrısı
+async function callApi(endpoint, payload) {
+    const resp = await fetch(endpoint, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload || {})
+    });
 
-    const previewText =
-        document.getElementById("preview-text") ||
-        document.querySelector(".preview-text");
-    const previewPlatforms =
-        document.getElementById("preview-platforms") ||
-        document.querySelector(".preview-platforms");
-    const previewFormatTag = document.querySelector(".preview-format-tag");
-
-    // --------------------------------------------------
-    // Form verisini toparlayan fonksiyon
-    // --------------------------------------------------
-    function collectFormData() {
-        const text = textInput ? textInput.value.trim() : "";
-
-        const platforms = [];
-        platformCheckboxes.forEach(cb => {
-            if (cb.checked) {
-                const label = cb.closest("label");
-                const val = cb.value || (label && label.innerText.trim());
-                if (val) platforms.push(val);
-            }
-        });
-
-        let schedule_mode = "now";
-        scheduleRadios.forEach(r => {
-            if (r.checked) {
-                schedule_mode = r.value || "now";
-            }
-        });
-
-        const scheduled_at = scheduledAtInput ? (scheduledAtInput.value || "") : "";
-
-        let media_files = [];
-        if (mediaInput && mediaInput.files && mediaInput.files.length > 0) {
-            media_files = Array.from(mediaInput.files).map(f => f.name);
-        }
-
-        // Format şimdilik sadece önizleme için
-        let format = "Normal Gönderi";
-        const formatRadio = document.querySelector("input[name='format']:checked");
-        if (formatRadio) {
-            const v = formatRadio.value;
-            if (v === "reels") format = "Short / Reels";
-            else if (v === "story") format = "Story";
-        }
-
-        return {
-            text,
-            platforms,
-            schedule_mode,
-            scheduled_at,
-            media_files,
-            format
-        };
+    if (!resp.ok) {
+        let msg = "Bilinmeyen hata";
+        try {
+            const errData = await resp.json();
+            msg = errData.error || msg;
+        } catch (e) {}
+        throw new Error(msg);
     }
 
-    // --------------------------------------------------
-    // Taslak kaydet butonu
-    // --------------------------------------------------
-    if (saveDraftBtn) {
-        saveDraftBtn.addEventListener("click", async () => {
-            const data = collectFormData();
-            console.log("Taslak kaydet tıklandı:", data);
+    const data = await resp.json();
+    return data;
+}
+
+// --------------------------------------------------
+// DOM Hazır olduğunda
+// --------------------------------------------------
+document.addEventListener("DOMContentLoaded", () => {
+    const lang = getCurrentLang();
+
+    // ---------- AI METİN ÖNER ----------
+    const btnAiText = document.getElementById("btn-ai-text");
+    const postTextArea = document.getElementById("post-text");
+
+    if (btnAiText && postTextArea) {
+        btnAiText.addEventListener("click", async () => {
+            const originalLabel = btnAiText.innerText;
+            btnAiText.disabled = true;
+            btnAiText.innerText = "Üretiliyor...";
 
             try {
-                const res = await fetch("/api/draft", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        text: data.text,
-                        platforms: data.platforms,
-                        schedule_mode: data.schedule_mode,
-                        scheduled_at: data.scheduled_at,
-                        media_files: data.media_files
-                    })
-                });
+                const platforms = getSelectedPlatforms();
+                const payload = {
+                    lang: getCurrentLang(),
+                    base_text: postTextArea.value || "",
+                    platforms: platforms,
+                    tone: "default" // ileride: "business", "fun", "romantic" vs.
+                };
 
-                const json = await res.json();
-                console.log("API cevabı:", json);
+                const data = await callApi("/api/ai_text", payload);
+                const suggestion = data.suggestion || "";
 
-                if (json.ok) {
-                    window.location.href = "/drafts";
+                if (!postTextArea.value.trim()) {
+                    postTextArea.value = suggestion;
                 } else {
-                    alert("Taslak kaydedilirken bir hata oluştu.");
+                    postTextArea.value = postTextArea.value.trim() + "\n\n" + suggestion;
                 }
             } catch (err) {
-                console.error("Taslak kaydederken hata:", err);
-                alert("Sunucuya ulaşılamadı.");
+                alert("AI metin üretiminde hata: " + err.message);
+            } finally {
+                btnAiText.disabled = false;
+                btnAiText.innerText = originalLabel;
             }
         });
     }
 
-    // --------------------------------------------------
-    // Gönderiyi Hazırla -> önizleme
-    // --------------------------------------------------
-    if (prepareBtn) {
-        prepareBtn.addEventListener("click", () => {
-            const data = collectFormData();
-            console.log("Gönderiyi Hazırla tıklandı:", data);
+    // ---------- AI HASHTAG ÖNER ----------
+    const btnAiHashtag = document.getElementById("btn-ai-hashtag");
+    const hashtagsArea = document.getElementById("hashtags");
 
-            if (previewText) {
-                previewText.textContent =
-                    data.text || "Gönderi metnin burada görünecek ✨";
-            }
+    if (btnAiHashtag && hashtagsArea) {
+        btnAiHashtag.addEventListener("click", async () => {
+            const originalLabel = btnAiHashtag.innerText;
+            btnAiHashtag.disabled = true;
+            btnAiHashtag.innerText = "Üretiliyor...";
 
-            if (previewPlatforms) {
-                previewPlatforms.innerHTML = "";
-                if (data.platforms.length === 0) {
-                    previewPlatforms.textContent = "Platform seçilmedi";
+            try {
+                const platforms = getSelectedPlatforms();
+                const payload = {
+                    lang: getCurrentLang(),
+                    base_text: hashtagsArea.value || "",
+                    platforms: platforms
+                };
+
+                const data = await callApi("/api/ai_hashtags", payload);
+                const suggestion = data.suggestion || "";
+
+                if (!hashtagsArea.value.trim()) {
+                    hashtagsArea.value = suggestion;
                 } else {
-                    data.platforms.forEach(p => {
-                        const span = document.createElement("span");
-                        span.className = "pill-soft";
-                        span.textContent = p;
-                        previewPlatforms.appendChild(span);
-                    });
+                    hashtagsArea.value = hashtagsArea.value.trim() + " " + suggestion;
                 }
-            }
-
-            if (previewFormatTag && data.format) {
-                previewFormatTag.textContent = data.format;
+            } catch (err) {
+                alert("Hashtag üretiminde hata: " + err.message);
+            } finally {
+                btnAiHashtag.disabled = false;
+                btnAiHashtag.innerText = originalLabel;
             }
         });
     }
 
-    // --------------------------------------------------
-    // Ölçek pill'lerini seçilebilir yapmak
-    // --------------------------------------------------
-    const ratioBlocks = document.querySelectorAll(".ratio-block");
-    ratioBlocks.forEach(block => {
-        const chips = block.querySelectorAll(".chip-small");
-        chips.forEach(chip => {
-            chip.classList.add("chip-selectable");
-            chip.addEventListener("click", () => {
-                chips.forEach(c => c.classList.remove("chip-selected"));
-                chip.classList.add("chip-selected");
+    // ---------- ÖLÇEK SEÇİMİ ----------
+    const aspectBadges = document.querySelectorAll(".aspect-badge");
+    const aspectInput = document.getElementById("aspect-ratio-input");
+
+    if (aspectBadges.length && aspectInput) {
+        aspectBadges.forEach((badge) => {
+            badge.addEventListener("click", () => {
+                const value = badge.getAttribute("data-aspect") || "";
+
+                // aktif class'ı güncelle
+                aspectBadges.forEach(b => b.classList.remove("active"));
+                badge.classList.add("active");
+
+                // gizli input'u güncelle
+                aspectInput.value = value;
             });
         });
-    });
+    }
 });

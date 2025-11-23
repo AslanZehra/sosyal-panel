@@ -1,180 +1,256 @@
-import json
-import sqlite3
+from __future__ import annotations
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from flask_cors import CORS
+from pathlib import Path
+import json
+import os
 
-DB_PATH = "app.db"
+# OpenAI client (gerçek yapay zeka için)
+try:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+except Exception:
+    client = None  # API yoksa endpointler hata mesajı döner
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
-CORS(app, resources={r"/*": {"origins": "*"}})
+# -------------------------------------------------
+# Basit dosya tabanlı depolama
+# -------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
 
-
-# ============================================================
-#  DATABASE KURULUMU
-# ============================================================
-def init_db():
-    """Geliştirme ortamı: her çalıştırmada drafts tablosunu temiz kur."""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Eski tabloyu sil
-    c.execute("DROP TABLE IF EXISTS drafts")
-
-    # Yeni tabloyu oluştur
-    c.execute("""
-        CREATE TABLE drafts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            text TEXT,
-            platforms TEXT,
-            schedule_mode TEXT,
-            scheduled_at TEXT,
-            media_json TEXT,
-            ts DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-    print(">> drafts tablosu yeni şemayla oluşturuldu.")
+SCHEDULED_FILE = DATA_DIR / "scheduled_posts.json"
+DRAFTS_FILE = DATA_DIR / "draft_posts.json"
 
 
-# ============================================================
-#  DATABASE YARDIMCI FONKSIYONLAR
-# ============================================================
-def save_draft(text, platforms, schedule_mode, scheduled_at, media_files):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    platforms_str = ",".join(platforms) if platforms else ""
-    media_json = json.dumps(media_files or [])
-
-    c.execute(
-        """
-        INSERT INTO drafts (text, platforms, schedule_mode, scheduled_at, media_json)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (text, platforms_str, schedule_mode, scheduled_at, media_json),
-    )
-    conn.commit()
-    conn.close()
+def load_json(path: Path) -> list:
+    """Verilen dosyadan liste döndür. Yoksa boş liste."""
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+    return []
 
 
-def get_all_drafts():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, text, platforms, schedule_mode, scheduled_at, media_json, ts
-        FROM drafts
-        ORDER BY id DESC
-    """)
-    rows = c.fetchall()
-    conn.close()
-    return rows
+def save_json(path: Path, data: list) -> None:
+    """Listeyi JSON olarak diske yaz."""
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def get_draft_by_id(draft_id: int):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, text, platforms, schedule_mode, scheduled_at, media_json, ts
-        FROM drafts
-        WHERE id = ?
-    """, (draft_id,))
-    row = c.fetchone()
-    conn.close()
-    return row
+# -------------------------------------------------
+# Flask uygulaması
+# -------------------------------------------------
+app = Flask(__name__)
 
 
-# ============================================================
-#  ROUTES
-# ============================================================
-
+# -------------------------------------------------
+# ANA SAYFA
+# -------------------------------------------------
 @app.route("/")
-def prepare():
-    """Yeni gönderi: boş form."""
-    return render_template("prepare.html", draft=None)
+def home():
+    """
+    Ana sayfa. Şu an index.html'i açıyor.
+    İstersen burada direkt prepare sayfasına da yönlendirebiliriz.
+    """
+    return render_template("index.html")
 
 
-@app.route("/multi")
-def multi():
-    """Multi-Post Beta placeholder sayfası."""
-    return render_template("multi.html")
+# -------------------------------------------------
+# GÖNDERİ OLUŞTUR (prepare.html)
+# -------------------------------------------------
+@app.route("/prepare", methods=["GET", "POST"])
+@app.route("/create", methods=["GET", "POST"])
+def create_post():
+    """
+    Gönderi oluşturma ekranı.
+    GET  -> prepare.html formunu gösterir.
+    POST -> formdan gelen veriyi zamanlanmış veya taslak olarak kaydeder.
+    """
+
+    if request.method == "POST":
+        # Hangi butona basıldığını anlamak için:
+        #  - Taslak Olarak Kaydet  -> action = "draft"
+        #  - Gönderiyi Oluştur     -> action = "submit"
+        action = request.form.get("action", "").strip()
+
+        text = request.form.get("post_text", "").strip()
+        hashtags = request.form.get("hashtags", "").strip()
+        platforms = request.form.getlist("platforms")           # checkbox listesi
+        fmt = request.form.get("format", "normal")              # radio
+        schedule_at = request.form.get("schedule_at", "").strip()
+        aspect_ratio = request.form.get("aspect_ratio", "").strip()
+
+        # Tek bir ortak obje yapısı
+        post_obj = {
+            "text": text,
+            "hashtags": hashtags,
+            "platforms": platforms,
+            "format": fmt,
+            "schedule_at": schedule_at,
+            "aspect_ratio": aspect_ratio,
+        }
+
+        # Taslak kaydı
+        if action == "draft":
+            drafts = load_json(DRAFTS_FILE)
+            drafts.append(post_obj)
+            save_json(DRAFTS_FILE, drafts)
+            return redirect(url_for("drafts"))
+
+        # Varsayılan: zamanlanmış gönderi kaydı
+        scheduled = load_json(SCHEDULED_FILE)
+        scheduled.append(post_obj)
+        save_json(SCHEDULED_FILE, scheduled)
+        return redirect(url_for("tasks"))
+
+    # GET isteği: sadece formu göster
+    return render_template("prepare.html")
 
 
+# -------------------------------------------------
+# ZAMANLANMIŞ GÖNDERİLER (tasks.html)
+# -------------------------------------------------
+@app.route("/tasks")
+def tasks():
+    """
+    Zamanlanmış gönderilerin listesi.
+    tasks.html içinde 'posts' olarak kullanılıyor.
+    """
+    scheduled_posts = load_json(SCHEDULED_FILE)
+    return render_template("tasks.html", posts=scheduled_posts)
+
+
+# -------------------------------------------------
+# TASLAKLAR / HAZIRLANANLAR (drafts.html)
+# -------------------------------------------------
 @app.route("/drafts")
 def drafts():
-    """Tüm taslakları listeleyen sayfa."""
-    rows = get_all_drafts()
-    drafts_list = []
-
-    for row in rows:
-        draft_id, text, platforms_str, schedule_mode, scheduled_at, media_json, ts = row
-        platforms = platforms_str.split(",") if platforms_str else []
-
-        try:
-            media_files = json.loads(media_json) if media_json else []
-        except Exception:
-            media_files = []
-
-        drafts_list.append({
-            "id": draft_id,
-            "text": text or "",
-            "platforms": platforms,
-            "schedule_mode": schedule_mode or "now",
-            "scheduled_at": scheduled_at or "",
-            "media_files": media_files,
-            "ts": ts,
-        })
-
-    return render_template("drafts.html", drafts=drafts_list)
+    """
+    Taslak gönderilerin listesi.
+    drafts.html içinde 'posts' olarak kullanılıyor.
+    """
+    draft_posts = load_json(DRAFTS_FILE)
+    return render_template("drafts.html", posts=draft_posts)
 
 
-@app.route("/draft/<int:draft_id>")
-def edit_draft(draft_id):
-    """Belirli bir taslağı düzenleme modunda açar."""
-    row = get_draft_by_id(draft_id)
-    if not row:
-        return redirect(url_for("prepare"))
-
-    draft_id, text, platforms_str, schedule_mode, scheduled_at, media_json, ts = row
-
-    draft = {
-        "id": draft_id,
-        "text": text or "",
-        "platforms": platforms_str.split(",") if platforms_str else [],
-        "schedule_mode": schedule_mode or "now",
-        "scheduled_at": scheduled_at or "",
-        "media_files": json.loads(media_json) if media_json else [],
-        "ts": ts,
-    }
-
-    return render_template("prepare.html", draft=draft)
+# -------------------------------------------------
+# DOSYA YÜKLEME ÖRNEK ENDPOINT
+# -------------------------------------------------
+@app.route("/uploads/<path:filename>")
+def uploaded_file(filename: str):
+    """
+    İleride medya dosyalarını göstermek için kullanabileceğin endpoint.
+    Şimdilik sadece dosya adını döndürüyor ki uygulama patlamasın.
+    """
+    return f"File: {filename}"
 
 
-@app.route("/api/draft", methods=["POST"])
-def save_draft_api():
-    """Frontend'in taslak kaydetmesi için JSON API."""
-    data = request.json or {}
-
-    text = (data.get("text") or "").strip()
-    platforms = data.get("platforms") or []
-    if not isinstance(platforms, list):
-        platforms = []
-
-    schedule_mode = data.get("schedule_mode") or "now"
-    scheduled_at = data.get("scheduled_at") or ""
-
-    media_files = data.get("media_files") or []
-    if not isinstance(media_files, list):
-        media_files = []
-
-    save_draft(text, platforms, schedule_mode, scheduled_at, media_files)
-    return jsonify({"ok": True})
+# -------------------------------------------------
+# GERÇEK AI ENDPOINT'LERİ
+# -------------------------------------------------
+def ensure_client():
+    if client is None:
+        return None, jsonify({"error": "OpenAI client kullanılamıyor. 'openai' paketini kur ve OPENAI_API_KEY tanımla."}), 500
+    if not os.environ.get("OPENAI_API_KEY"):
+        return None, jsonify({"error": "OPENAI_API_KEY ortam değişkeni tanımlı değil."}), 500
+    return client, None, None
 
 
-# ============================================================
-#  UYGULAMA BAŞLATMA
-# ============================================================
+@app.route("/api/ai_text", methods=["POST"])
+def api_ai_text():
+    """
+    Gönderi metni için yapay zeka ile yeni bir öneri üretir.
+    Body: { "lang": "tr", "base_text": "..." }
+    """
+    cli, err_resp, status = ensure_client()
+    if err_resp:
+        return err_resp, status
+
+    data = request.get_json(silent=True) or {}
+    lang = data.get("lang", "tr")
+    base_text = data.get("base_text", "").strip()
+    platforms = data.get("platforms", [])
+    tone = data.get("tone", "default")
+
+    # Kullanıcıya görünmeyecek ama modele giden açıklama
+    system_msg = (
+        "You are an assistant that writes short, social-media-friendly post texts. "
+        "Keep it under 2–3 sentences. Return only the text, no explanations."
+    )
+
+    # Dil ve ton bilgisi ile prompt
+    user_prompt = f"Language code: {lang}\n"
+    if platforms:
+        user_prompt += f"Target platforms: {', '.join(platforms)}\n"
+    if tone != "default":
+        user_prompt += f"Tone: {tone}\n"
+    if base_text:
+        user_prompt += f"Base idea from user: {base_text}\n"
+        user_prompt += "Rewrite/extend this idea into a clean, engaging post."
+    else:
+        user_prompt += "Create a fresh, engaging social media post from scratch."
+
+    try:
+        completion = cli.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        suggestion = completion.choices[0].message.content.strip()
+        return jsonify({"suggestion": suggestion})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ai_hashtags", methods=["POST"])
+def api_ai_hashtags():
+    """
+    Hashtag önerisi üretir.
+    Body: { "lang": "tr", "base_text": "...", "platforms": ["instagram", ...] }
+    """
+    cli, err_resp, status = ensure_client()
+    if err_resp:
+        return err_resp, status
+
+    data = request.get_json(silent=True) or {}
+    lang = data.get("lang", "tr")
+    base_text = data.get("base_text", "").strip()
+    platforms = data.get("platforms", [])
+
+    system_msg = (
+        "You are an assistant that generates social media hashtags. "
+        "Return 10–20 hashtags, separated by spaces, no explanations, no numbering."
+    )
+
+    user_prompt = f"Language code: {lang}\n"
+    if platforms:
+        user_prompt += f"Target platforms: {', '.join(platforms)}\n"
+    if base_text:
+        user_prompt += f"Post text: {base_text}\n"
+    user_prompt += (
+        "Generate relevant, trending but not spammy hashtags for this post. "
+        "Output only hashtags, separated by spaces."
+    )
+
+    try:
+        completion = cli.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        suggestion = completion.choices[0].message.content.strip()
+        return jsonify({"suggestion": suggestion})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------
+# Uygulama giriş noktası
+# -------------------------------------------------
 if __name__ == "__main__":
-    init_db()
+    # debug=True: geliştirme aşamasında iyi, prod'da False yapılır
     app.run(debug=True)

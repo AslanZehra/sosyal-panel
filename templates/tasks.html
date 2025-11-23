@@ -2,9 +2,9 @@
 {% block content %}
 
 <div class="form-card">
-    <h1 class="page-title" data-i18n="nav_drafts">Hazırlananlar</h1>
+    <h1 class="page-title" data-i18n="nav_scheduled">Zamanlanmış</h1>
     <p class="page-desc">
-        Tamamlamadığın, taslak olarak kaydettiğin gönderiler burada listelenecek.
+        Burada geleceğe planlanmış tüm gönderilerini görürsün. Tarih, platform, format ve ölçek bilgilerini kontrol edebilirsin.
     </p>
 
     {% if posts %}
@@ -23,6 +23,7 @@
                         <div class="scheduled-text">{{ post.text }}</div>
 
                         <div class="scheduled-meta">
+                            <!-- Platform rozetleri -->
                             <div class="platform-chip-group">
                                 {% for p in post.platforms %}
                                     <div class="platform-chip">
@@ -33,8 +34,9 @@
                                 {% endfor %}
                             </div>
 
+                            <!-- Format ve ölçek -->
                             <div style="margin-top:6px;">
-                                <span>Taslak</span>
+                                <span>{{ post.format }}</span>
                                 {% if post.aspect_ratio %}
                                     <span>•</span>
                                     <span>{{ post.aspect_ratio }}</span>
@@ -47,14 +49,14 @@
                         {% if post.schedule_at %}
                             {{ post.schedule_at }}
                         {% else %}
-                            (Tarih seçilmemiş)
+                            Hemen
                         {% endif %}
                     </div>
                 </div>
             {% endfor %}
         </div>
     {% else %}
-        <p class="helper-text">Henüz kaydedilmiş taslak gönderin yok.</p>
+        <p class="helper-text">Henüz zamanlanmış gönderin yok.</p>
     {% endif %}
 </div>
 

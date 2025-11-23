@@ -1,0 +1,30 @@
+[
+  {
+    "id": "3c433f3773ed44a2a7f65f39a0210dd8",
+    "text": "deneme ",
+    "platforms": [
+      "instagram"
+    ],
+    "schedule_date": "",
+    "schedule_mode": "now",
+    "content_type": "short",
+    "language": "tr",
+    "media": "d20f0159527e4a5089b3c64205417a8d.jpeg",
+    "aspect_ratio": "9:16"
+  },
+  {
+    "id": "157163f7e82f48699ac7d9c30850cb62",
+    "text": "Bugün enerjimi paylaşmak istedim! 🔥✨\r\nYeni hedefler, yeni motivasyon… Sen de var mısın? 💜",
+    "platforms": [
+      "instagram",
+      "facebook",
+      "x"
+    ],
+    "schedule_date": "",
+    "schedule_mode": "now",
+    "content_type": "story",
+    "language": "tr",
+    "media": "52787818cfe74e65b146010f099a48a9.jpeg",
+    "aspect_ratio": "9:16"
+  }
+]

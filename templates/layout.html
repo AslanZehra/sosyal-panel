@@ -1,12 +1,46 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8">
-  <title>{% block title %}MySocial{% endblock %}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <title>MySocial Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-  {% block content %}{% endblock %}
+<body class="app-body">
+
+<div class="app-shell">
+
+    <header class="app-header">
+        <div class="app-logo">
+            <span class="logo-dot"></span>
+            <span data-i18n="app_title">MySocial Panel</span>
+        </div>
+
+        <nav class="app-nav">
+            <a href="/" class="top-link" data-i18n="nav_home">Ana Sayfa</a>
+            <a href="/prepare" class="top-link" data-i18n="nav_create">Gönderi Oluştur</a>
+            <a href="/tasks" class="top-link" data-i18n="nav_scheduled">Zamanlanmış</a>
+            <a href="/drafts" class="top-link" data-i18n="nav_drafts">Hazırlananlar</a>
+        </nav>
+
+        <div class="lang-switcher">
+            <label for="lang-select" class="lang-label" data-i18n="lang_label">Dil</label>
+            <select id="lang-select" onchange="changeLanguage(this)">
+                <option value="tr">TR</option>
+                <option value="en">EN</option>
+                <option value="fr">FR</option>
+                <option value="it">IT</option>
+                <option value="ja">日本語</option>
+                <option value="ar">العربية</option>
+            </select>
+        </div>
+    </header>
+
+    {% block content %}{% endblock %}
+
+</div>
+
+<script src="{{ url_for('static', filename='translations.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

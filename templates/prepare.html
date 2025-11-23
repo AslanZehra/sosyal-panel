@@ -1,247 +1,175 @@
 {% extends "layout.html" %}
-{% block title %}MySocial | Sosyal Medya Gönderi Aracı{% endblock %}
 {% block content %}
 
-{# Taslak mı, yeni mi? #}
-{% set is_edit = draft is defined and draft is not none %}
-{% set text_val = draft.text if is_edit else "" %}
-{% set selected_platforms = draft.platforms if is_edit else [] %}
-{% set schedule_mode_val = draft.schedule_mode if is_edit else "now" %}
-{% set scheduled_at_val = draft.scheduled_at if is_edit else "" %}
-{% set media_files_val = draft.media_files if is_edit else [] %}
+<div class="form-card">
 
-<div class="page-shell">
-  <header class="page-header">
-    <div>
-      <div class="logo-pill">MySocial</div>
-      <h1 class="page-title">
-        {% if is_edit %}
-          Taslak Düzenle #{{ draft.id }}
-        {% else %}
-          MySocial
-        {% endif %}
-      </h1>
-      <p class="page-subtitle">
-        Sosyal medya gönderi hazırlama ve planlama aracı
-      </p>
-      <a href="{{ url_for('drafts') }}" class="top-link">Ana Sayfa Taslaklar Multi-Post Beta</a>
-    </div>
+    <h1 class="page-title" data-i18n="page_prepare_title">Gönderiyi Hazırla</h1>
+    <p class="page-desc" data-i18n="page_prepare_desc">
+        Metni yaz, platform ve format seç, medyayı ekle ve istersen plana al.
+        Ölçek (aspect ratio) bilgisi seçtiğin format ve platformlara göre otomatik önerilir.
+    </p>
 
-    <nav class="page-nav">
-      <a href="{{ url_for('prepare') }}" class="pill-link pill-link-active">Ana Sayfa</a>
-      <a href="{{ url_for('drafts') }}" class="pill-link">Taslaklar</a>
-      <a href="{{ url_for('multi') }}" class="pill-link">Multi-Post Beta</a>
-    </nav>
-  </header>
+    <!-- FORM BAŞLANGICI -->
+    <form method="POST" action="{{ url_for('create_post') }}" enctype="multipart/form-data">
 
-  <main class="page-grid">
-    <!-- SOL: FORM -->
-    <section class="card card-main">
-      <div class="card-header">
-        <h2 class="card-title">
-          {% if is_edit %}Taslak Üzerinden Gönderi Hazırla{% else %}Gönderiyi Hazırla{% endif %}
-        </h2>
-        <p class="card-subtitle">
-          Metni yaz, platform ve formatı seç, medyayı ekle ve istersen planla.
-        </p>
-      </div>
+        <!-- Gönderi metni -->
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_post_text">Gönderi Metni</label>
+            <textarea
+                id="post-text"
+                name="post_text"
+                class="input textarea"
+                rows="4"
+                data-i18n-placeholder="placeholder_post_text"
+                placeholder="Metnini buraya yaz..."
+            >{{ default_text or "" }}</textarea>
 
-      <div class="card-body">
-        <!-- Metin -->
-        <div class="field">
-          <label for="postText" class="field-label">Gönderi Metni</label>
-          <textarea
-            id="postText"
-            name="text"
-            class="field-input field-textarea"
-            rows="5"
-            placeholder="Bugün ne paylaşmak istersin?"
-          >{{ text_val }}</textarea>
+            <div style="margin-top:8px;">
+                <button
+                    type="button"
+                    class="btn neon-btn"
+                    id="btn-ai-text"
+                    data-i18n="btn_ai_text"
+                >
+                    ⚡ Yapay Zeka ile Metin Öner
+                </button>
+            </div>
+        </div>
+
+        <!-- Hashtagler -->
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_hashtags">Hashtagler</label>
+            <textarea
+                id="hashtags"
+                name="hashtags"
+                class="input textarea"
+                rows="3"
+                data-i18n-placeholder="placeholder_hashtags"
+                placeholder="#hedefler #mutluluk #bugün..."
+            >{{ default_hashtags or "" }}</textarea>
+
+            <div style="margin-top:8px;">
+                <button
+                    type="button"
+                    class="btn neon-btn"
+                    id="btn-ai-hashtag"
+                    data-i18n="btn_ai_hashtag"
+                >
+                    ⚡ # Hashtag Öner
+                </button>
+            </div>
         </div>
 
         <!-- Platformlar -->
-        <div class="field">
-          <label class="field-label">Platformlar</label>
-          <div class="chip-row">
-            <label class="chip">
-              <input type="checkbox" name="platforms" value="Instagram"
-                     {% if "Instagram" in selected_platforms %}checked{% endif %}>
-              <span>Instagram</span>
-            </label>
-            <label class="chip">
-              <input type="checkbox" name="platforms" value="Facebook"
-                     {% if "Facebook" in selected_platforms %}checked{% endif %}>
-              <span>Facebook</span>
-            </label>
-            <label class="chip">
-              <input type="checkbox" name="platforms" value="X (Twitter)"
-                     {% if "X (Twitter)" in selected_platforms %}checked{% endif %}>
-              <span>X (Twitter)</span>
-            </label>
-            <label class="chip">
-              <input type="checkbox" name="platforms" value="YouTube"
-                     {% if "YouTube" in selected_platforms %}checked{% endif %}>
-              <span>YouTube</span>
-            </label>
-            <label class="chip">
-              <input type="checkbox" name="platforms" value="TikTok"
-                     {% if "TikTok" in selected_platforms %}checked{% endif %}>
-              <span>TikTok</span>
-            </label>
-          </div>
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_platforms">Platformlar</label>
+            <div class="pill-group">
+                <label class="pill">
+                    <input type="checkbox" name="platforms" value="instagram">
+                    <span>📸 Instagram</span>
+                </label>
+                <label class="pill">
+                    <input type="checkbox" name="platforms" value="facebook">
+                    <span>📘 Facebook</span>
+                </label>
+                <label class="pill">
+                    <input type="checkbox" name="platforms" value="x">
+                    <span>𝕏 Twitter</span>
+                </label>
+                <label class="pill">
+                    <input type="checkbox" name="platforms" value="youtube">
+                    <span>▶️ YouTube</span>
+                </label>
+                <label class="pill">
+                    <input type="checkbox" name="platforms" value="tiktok">
+                    <span>🎵 TikTok</span>
+                </label>
+            </div>
         </div>
 
         <!-- Format -->
-        <div class="field">
-          <label class="field-label">Format</label>
-          <div class="chip-row">
-            <label class="chip chip-toggle chip-toggle-active">
-              <input type="radio" name="format" value="normal" checked>
-              <span>Normal Gönderi</span>
-            </label>
-            <label class="chip chip-toggle">
-              <input type="radio" name="format" value="reels">
-              <span>Short / Reels</span>
-            </label>
-            <label class="chip chip-toggle">
-              <input type="radio" name="format" value="story">
-              <span>Story</span>
-            </label>
-          </div>
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_format">Format</label>
+            <div class="pill-group">
+                <label class="pill">
+                    <input type="radio" name="format" value="normal" checked>
+                    <span data-i18n="format_normal">Normal Gönderi</span>
+                </label>
+                <label class="pill">
+                    <input type="radio" name="format" value="short">
+                    <span data-i18n="format_short">Short / Reels</span>
+                </label>
+                <label class="pill">
+                    <input type="radio" name="format" value="story">
+                    <span data-i18n="format_story">Story</span>
+                </label>
+            </div>
         </div>
 
-        <!-- Ölçek tablosu -->
-        <div class="field">
-          <label class="field-label">Ölçek (Aspect Ratio)</label>
+        <!-- Ölçek bilgisi + rozetler -->
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_aspect_title">Ölçek Bilgisi</label>
+            <p class="helper-text" data-i18n="text_aspect_info">
+                Seçtiğin platform ve formata göre sistem otomatik bir aspect ratio (1:1, 4:5, 9:16, 16:9) önerir ve gönderi kaydına ekler.
+                Zamanlanmış gönderilerde de aynı şekilde kullanılır.
+            </p>
 
-          <div class="ratio-grid">
-            <div class="ratio-block">
-              <div class="ratio-title">Instagram</div>
-              <div class="chip-row">
-                <span class="chip chip-small">1:1</span>
-                <span class="chip chip-small">4:5</span>
-                <span class="chip chip-small">9:16</span>
-              </div>
-            </div>
+            <!-- Seçilen değeri backend'e göndermek için gizli input -->
+            <input type="hidden" name="aspect_ratio" id="aspect-ratio-input" value="">
 
-            <div class="ratio-block">
-              <div class="ratio-title">Facebook</div>
-              <div class="chip-row">
-                <span class="chip chip-small">1.91:1</span>
-                <span class="chip chip-small">1:1</span>
-              </div>
+            <div class="aspect-badge-group">
+                <button type="button" class="aspect-badge" data-aspect="1:1">1 : 1</button>
+                <button type="button" class="aspect-badge" data-aspect="4:5">4 : 5</button>
+                <button type="button" class="aspect-badge" data-aspect="9:16">9 : 16</button>
+                <button type="button" class="aspect-badge" data-aspect="16:9">16 : 9</button>
             </div>
-
-            <div class="ratio-block">
-              <div class="ratio-title">X (Twitter)</div>
-              <div class="chip-row">
-                <span class="chip chip-small">16:9</span>
-                <span class="chip chip-small">1:1</span>
-              </div>
-            </div>
-
-            <div class="ratio-block">
-              <div class="ratio-title">YouTube</div>
-              <div class="chip-row">
-                <span class="chip chip-small">16:9</span>
-                <span class="chip chip-small">9:16 (Shorts)</span>
-              </div>
-            </div>
-
-            <div class="ratio-block">
-              <div class="ratio-title">TikTok</div>
-              <div class="chip-row">
-                <span class="chip chip-small">9:16</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- Medya -->
-        <div class="field">
-          <label class="field-label">Medya</label>
-          <div class="media-row">
-            <input type="file" id="mediaInput" multiple>
-            <p class="field-help">
-              Şimdilik sadece dosya isimlerini JSON içinde tutuyoruz. Gerçek upload sonraki aşama.
-            </p>
-          </div>
-
-          {% if media_files_val and media_files_val|length > 0 %}
-            <div class="field">
-              <label class="field-label">Bu taslakta kayıtlı medya dosyaları</label>
-              <div class="chip-row">
-                {% for f in media_files_val %}
-                  <span class="pill-soft">{{ f }}</span>
-                {% endfor %}
-              </div>
-            </div>
-          {% endif %}
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_media">Medya Ekle</label>
+            <input type="file" name="media" id="media-input" class="input file-input" multiple>
         </div>
 
         <!-- Zamanlama -->
-        <div class="field">
-          <label class="field-label">Zamanlama</label>
-          <div class="chip-row">
-            <label class="chip chip-toggle {% if schedule_mode_val == 'now' %}chip-toggle-active{% endif %}">
-              <input type="radio" name="scheduleMode" value="now"
-                     {% if schedule_mode_val == 'now' %}checked{% endif %}>
-              <span>Şimdi paylaş</span>
-            </label>
-            <label class="chip chip-toggle {% if schedule_mode_val == 'later' %}chip-toggle-active{% endif %}">
-              <input type="radio" name="scheduleMode" value="later"
-                     {% if schedule_mode_val == 'later' %}checked{% endif %}>
-              <span>Planla</span>
-            </label>
-          </div>
-          <div class="schedule-row">
+        <div class="form-row">
+            <label class="form-label" data-i18n="label_schedule">Zamanlama</label>
             <input
-              type="datetime-local"
-              name="scheduled_at"
-              class="field-input"
-              value="{{ scheduled_at_val }}"
+                type="datetime-local"
+                name="schedule_at"
+                id="schedule-at"
+                class="input"
             >
-          </div>
         </div>
 
-        <!-- BUTONLAR -->
-        <div class="field field-actions">
-          <button type="button" class="btn btn-primary btn-full">
-            Gönderiyi Hazırla
-          </button>
-          <button type="button" class="btn btn-ghost btn-full">
-            Taslak Olarak Kaydet
-          </button>
-        </div>
-      </div>
-    </section>
+        <!-- Butonlar -->
+        <div class="form-actions">
+            <!-- Taslak: action=draft -->
+            <button
+                type="submit"
+                class="btn ghost-btn"
+                name="action"
+                value="draft"
+                data-i18n="btn_save_draft"
+            >
+                Taslak Olarak Kaydet
+            </button>
 
-    <!-- SAĞ: ÖNİZLEME -->
-    <section class="card card-preview">
-      <div class="card-header">
-        <h2 class="card-title">Canlı Önizleme</h2>
-        <p class="card-subtitle">
-          Metni yazdıkça ve platform seçtikçe önizleme burada güncellenir.
-        </p>
-      </div>
-
-      <div class="card-body">
-        <div class="preview-header">
-          <div id="preview-platforms" class="preview-platforms">
-            Platform seçilmedi
-          </div>
-          <span class="preview-format-tag">Normal Gönderi</span>
+            <!-- Gönderiyi oluştur: action=submit -->
+            <button
+                type="submit"
+                class="btn primary-btn"
+                name="action"
+                value="submit"
+                data-i18n="btn_submit_now"
+            >
+                Gönderiyi Oluştur
+            </button>
         </div>
 
-        <div class="preview-card">
-          <p id="preview-text" class="preview-text">
-            Gönderi metnin burada görünecek ✨
-          </p>
-        </div>
-      </div>
-    </section>
-  </main>
+    </form>
+    <!-- FORM BİTİŞİ -->
+
 </div>
 
-<script src="{{ url_for('static', filename='app.js') }}"></script>
 {% endblock %}
