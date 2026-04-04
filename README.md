@@ -35,5 +35,19 @@ source venv/bin/activate
 # 3. Gerekli paketleri yükle
 pip install -r requirements.txt
 
-# 4. Uygulamayı çalıştır
+# 4. Ortam dosyasını hazırla
+cp .env.example .env
+
+# 5. Uygulamayı çalıştır
 python main.py
+
+# 6. Worker'ı ayrı terminalde çalıştır
+python static/worker.py
+```
+
+## Production Deploy
+
+Production için `web + worker` tek servis içinde çalıştırılır:
+
+- Start command: `bash scripts/start_web_with_worker.sh`
+- Detaylı adımlar: [DEPLOY.md](DEPLOY.md)

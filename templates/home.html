@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h1 class="page-title" data-i18n="home_title">
+    MySocial Panel'e Hoş Geldin
+</h1>
+<p class="page-subtitle" data-i18n="home_intro">
+    Tüm sosyal medya içeriklerini tek yerden yönet: gönderi hazırla, zamanla,
+    taslaklarını düzenle ve yapay zekadan metin önerileri al.
+</p>
+
+<div class="section-card">
+    <div class="home-list-title" data-i18n="home_start_list_title">
+        Başlamak için
+    </div>
+    <ul class="home-list">
+        <li data-i18n="home_bullet_create">
+            Gönderi Oluştur → Yeni içerik hazırla, AI ile metin üret, medya ekle.
+        </li>
+        <li data-i18n="home_bullet_scheduled">
+            Zamanlanmış → Kaydedilmiş ve planlanmış gönderilerini gör.
+        </li>
+        <li data-i18n="home_bullet_drafts">
+            Hazırlananlar → Taslak ekranı (ileride gelişecek).
+        </li>
+    </ul>
+</div>
+
+{% endblock %}

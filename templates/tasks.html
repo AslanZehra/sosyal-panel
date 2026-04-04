@@ -1,63 +1,72 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<div class="form-card">
-    <h1 class="page-title" data-i18n="nav_scheduled">Zamanlanmış</h1>
-    <p class="page-desc">
-        Burada geleceğe planlanmış tüm gönderilerini görürsün. Tarih, platform, format ve ölçek bilgilerini kontrol edebilirsin.
-    </p>
+<h1 class="page-title">Zamanlanmış</h1>
+<p class="page-desc">
+  Planlanan gönderiler burada. Kuyruk: <b>{{ queue_count }}</b> | Arşiv: <b>{{ archive_count }}</b>
+</p>
 
-    {% if posts %}
-        {% set icons = {
-            'instagram': '📸 Instagram',
-            'facebook': '📘 Facebook',
-            'x': '𝕏 Twitter',
-            'youtube': '▶️ YouTube',
-            'tiktok': '🎵 TikTok'
-        } %}
-
-        <div class="scheduled-list">
-            {% for post in posts %}
-                <div class="scheduled-item">
-                    <div class="scheduled-main">
-                        <div class="scheduled-text">{{ post.text }}</div>
-
-                        <div class="scheduled-meta">
-                            <!-- Platform rozetleri -->
-                            <div class="platform-chip-group">
-                                {% for p in post.platforms %}
-                                    <div class="platform-chip">
-                                        <span class="platform-chip-emoji">
-                                            {{ icons.get(p, '📌') }}
-                                        </span>
-                                    </div>
-                                {% endfor %}
-                            </div>
-
-                            <!-- Format ve ölçek -->
-                            <div style="margin-top:6px;">
-                                <span>{{ post.format }}</span>
-                                {% if post.aspect_ratio %}
-                                    <span>•</span>
-                                    <span>{{ post.aspect_ratio }}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="scheduled-time">
-                        {% if post.schedule_at %}
-                            {{ post.schedule_at }}
-                        {% else %}
-                            Hemen
-                        {% endif %}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="helper-text">Henüz zamanlanmış gönderin yok.</p>
-    {% endif %}
+<div class="form-actions" style="justify-content:flex-start; border-top:0; padding-top:0; margin-top:0; margin-bottom:12px;">
+  <a class="btn" href="{{ url_for('queue_view') }}">Kuyruğu Aç</a>
+  <a class="btn" href="{{ url_for('archive_view') }}">Arşivi Aç</a>
 </div>
+
+{% if not posts or posts|length == 0 %}
+  <div class="card">
+    <p class="card-meta">Henüz zamanlanmış gönderi yok.</p>
+  </div>
+{% else %}
+  <div class="grid">
+    {% for p in posts %}
+      {% set st = (p.status or '') %}
+      <div class="card">
+        <div class="card-title">
+          <div>
+            <h3>
+              {% if p.type == 'one_shot' %}Tek Sefer{% endif %}
+              {% if p.type == 'interval' %}Aralıklı{% endif %}
+              {% if p.type == 'interval_range' %}Kampanya{% endif %}
+              {% if p.type not in ['one_shot', 'interval', 'interval_range'] %}{{ p.type or 'Plan' }}{% endif %}
+            </h3>
+            <p class="card-meta">Oluşturma: {{ p.created_at or '-' }}</p>
+          </div>
+          <div class="badges">
+            <span class="badge {% if st in ['active','scheduled'] %}ok{% elif st in ['queued'] %}warn{% else %}brand{% endif %}">{{ st or '—' }}</span>
+          </div>
+        </div>
+
+        <div class="badges" style="margin-bottom:10px;">
+          {% for plat in (p.platforms or []) %}
+            <span class="badge brand">{{ plat }}</span>
+          {% endfor %}
+          <span class="badge">{{ p.format or 'normal' }}</span>
+          {% if p.media and p.media|length > 0 %}
+            <span class="badge">{{ p.media|length }} medya</span>
+          {% endif %}
+        </div>
+
+        {% if p.type == 'one_shot' %}
+          <p class="small">Zaman: <b>{{ p.schedule_at or '-' }}</b></p>
+        {% elif p.type == 'interval' %}
+          <p class="small">Başlangıç: <b>{{ p.start_at or '-' }}</b></p>
+          <p class="small">Aralık: <b>{{ p.interval_min or '-' }}</b> dk</p>
+          <p class="small">Sonraki Çalışma: <b>{{ p.next_run_at or '-' }}</b></p>
+        {% elif p.type == 'interval_range' %}
+          <p class="small">Başlangıç: <b>{{ p.start_at or '-' }}</b></p>
+          <p class="small">Bitiş: <b>{{ p.end_at or '-' }}</b></p>
+          <p class="small">Günlük: <b>{{ p.per_day_count or '-' }}</b> paylaşım</p>
+          <p class="small">Aralık: <b>{{ p.interval_min or '-' }}</b> dk</p>
+          <p class="small">Sonraki Çalışma: <b>{{ p.next_run_at or '-' }}</b></p>
+        {% endif %}
+
+        {% if p.targets %}
+          <p class="small">Hedefler: <b>{{ p.targets }}</b></p>
+        {% endif %}
+
+        <div class="preview-text">{{ (p.text or '')[:220] }}{% if (p.text or '')|length > 220 %}…{% endif %}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
 
 {% endblock %}

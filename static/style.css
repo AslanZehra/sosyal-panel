@@ -1,342 +1,380 @@
-/* ===========================================
-   GLOBAL THEME — PROFESSIONAL SAAS
-   (Apple + Meta + SaaS premium style)
-=========================================== */
+/* static/style.css — FINAL (Premium Dark + Clean Background + RTL) */
 
-:root {
-  --bg: #f7f8fa;
-  --card-bg: #ffffff;
-  --text: #1f1f1f;
-  --text-light: #6b7280;
-  --border: #e5e7eb;
-  --primary: #6a5acd;       /* Soft purple */
-  --primary-hover: #5a4ac2;
-  --primary-light: #ede9ff;
-  --radius-xl: 20px;
-  --radius-md: 14px;
-  --radius-sm: 10px;
+:root{
+  --bg:#070a14;
 
-  --shadow-soft: 0 4px 20px rgba(0,0,0,0.05);
-  --shadow-card: 0 6px 30px rgba(0,0,0,0.08);
+  --panel:#0f1630;
+  --card:#101a3a;
+
+  --border:rgba(255,255,255,.10);
+  --muted:rgba(255,255,255,.66);
+  --text:rgba(255,255,255,.92);
+
+  --brand:#6d5efc;
+  --brand2:#14b8a6;
+
+  --danger:#ef4444;
+  --warn:#f59e0b;
+  --ok:#22c55e;
+
+  --shadow: 0 18px 55px rgba(0,0,0,.45);
+  --shadow2: 0 10px 28px rgba(0,0,0,.35);
+  --radius: 18px;
+  --radius2: 14px;
 }
 
-/* ===========================================
- BASE
-=========================================== */
-body.app-body {
-  margin: 0;
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  color:var(--text);
+
+  /* ✅ Clean background (no ugly banding) */
   background: var(--bg);
-  color: var(--text);
-  font-family: "Inter", sans-serif;
+  background-image:
+    radial-gradient(900px 520px at 15% -10%, rgba(109,94,252,.14), transparent 60%),
+    radial-gradient(900px 520px at 85% -10%, rgba(20,184,166,.10), transparent 60%);
+  background-attachment: fixed;
 }
 
-.app-shell {
-  max-width: 1080px;
-  margin: 30px auto;
-  padding: 20px;
+a{color:inherit; text-decoration:none}
+
+.container{
+  width:min(1100px, 92vw);
+  margin: 28px auto 64px;
 }
 
-/* ===========================================
- HEADER / NAVBAR
-=========================================== */
-.app-header {
-  background: var(--card-bg);
-  padding: 20px 25px;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 35px;
+/* ---------------- Topbar ---------------- */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(14px);
+  background: rgba(7,10,20,.62);
+  border-bottom:1px solid rgba(255,255,255,.08);
 }
 
-.app-logo {
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-  font-size: 20px;
+.topbar-inner{
+  width:min(1100px, 92vw);
+  margin:0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 0;
+  gap:18px;
 }
 
-.logo-dot {
-  width: 10px;
-  height: 10px;
-  background: var(--primary);
-  border-radius: 50%;
-  margin-right: 8px;
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:850;
+  letter-spacing:.2px;
 }
 
-.app-nav {
-  display: flex;
-  gap: 15px;
+.brand-dot{
+  width:10px;height:10px;border-radius:99px;
+  background: linear-gradient(135deg, var(--brand), var(--brand2));
+  box-shadow: 0 0 0 4px rgba(109,94,252,.14);
 }
 
-.top-link {
-  text-decoration: none;
-  padding: 8px 14px;
-  color: var(--text);
-  border-radius: var(--radius-sm);
-  background: var(--primary-light);
-  border: 1px solid transparent;
-  font-size: 14px;
-  transition: 0.2s;
+.brand-title{
+  font-size:16px;
+  opacity:.95;
 }
 
-.top-link:hover {
-  background: var(--primary);
-  color: white;
+.nav{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
-.lang-switcher select {
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  font-size: 14px;
+.nav a{
+  padding:10px 12px;
+  border-radius:12px;
+  color:rgba(255,255,255,.78);
+  border:1px solid transparent;
+  transition:all .15s ease;
 }
 
-/* ===========================================
- CONTENT CARDS
-=========================================== */
-.form-card {
-  background: var(--card-bg);
-  padding: 30px;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
+.nav a:hover{
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
 }
 
-.page-title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
+.nav a.active{
+  background: rgba(109,94,252,.18);
+  border-color: rgba(109,94,252,.35);
+  color: rgba(255,255,255,.96);
 }
 
-.page-desc {
-  margin-top: 8px;
-  color: var(--text-light);
-  font-size: 14px;
+.topbar-right{
+  display:flex;
+  align-items:center;
+  gap:12px;
 }
 
-.form-row {
-  margin-top: 20px;
+.select{
+  appearance:none;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  color: rgba(255,255,255,.9);
+  border-radius:12px;
+  padding:10px 12px;
+  outline:none;
+  transition: all .12s ease;
 }
 
-.form-label {
-  font-size: 14px;
-  font-weight: 500;
+.select:focus{
+  border-color: rgba(109,94,252,.55);
+  box-shadow: 0 0 0 4px rgba(109,94,252,.14);
 }
 
-.input {
-  width: 100%;
-  margin-top: 8px;
-  padding: 12px;
-  font-size: 15px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: white;
+/* ---------------- Typography ---------------- */
+.page-title{
+  font-size:28px;
+  font-weight:900;
+  margin: 0 0 8px;
+  letter-spacing:-.4px;
 }
 
-.textarea {
-  height: 110px;
-  resize: vertical;
+.page-desc{
+  margin: 0 0 18px;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 75ch;
 }
 
-/* ===========================================
- PILL GROUPS (Platform & Format)
-=========================================== */
-.pill-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.small{font-size:12px; color: rgba(255,255,255,.65)}
+
+/* ---------------- Form Card ---------------- */
+.form-card{
+  background: rgba(16,26,58,.94);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
 }
 
-.pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  background: #f3f4f6;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: 0.2s;
+/* subtle header divider inside cards */
+.form-card > .divider{
+  height:1px;
+  background: rgba(255,255,255,.08);
+  margin: 16px 0;
 }
 
-.pill input {
-  margin-right: 4px;
+.form-row{margin: 14px 0;}
+
+.form-label{
+  display:block;
+  font-size:13px;
+  color: rgba(255,255,255,.78);
+  margin-bottom:8px;
 }
 
-.pill:hover {
-  background: var(--primary-light);
+.helper-text{
+  margin: 8px 0 0;
+  font-size:12px;
+  color: rgba(255,255,255,.60);
+  line-height: 1.35;
 }
 
-/* ===========================================
- ASPECT RATIO BADGES
-=========================================== */
-.aspect-badge-group {
-  display: flex;
-  gap: 12px;
-  margin-top: 10px;
+.input{
+  width:100%;
+  border-radius: var(--radius2);
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  padding: 12px 12px;
+  color: rgba(255,255,255,.92);
+  outline:none;
+  transition: all .12s ease;
 }
 
-.aspect-badge {
-  padding: 6px 12px;
-  background: #f3f4f6;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+.input:focus{
+  border-color: rgba(109,94,252,.55);
+  box-shadow: 0 0 0 4px rgba(109,94,252,.16);
+}
+
+.textarea{resize:vertical; min-height:110px}
+.file-input{padding:10px}
+
+/* ---------------- Pills ---------------- */
+.pill-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.05);
+  cursor:pointer;
+  user-select:none;
+  transition: all .12s ease;
+}
+
+.pill:hover{background: rgba(255,255,255,.07)}
+.pill input{accent-color: var(--brand)}
+
+/* ---------------- Buttons ---------------- */
+.form-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+  padding-top:16px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.btn{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  border-radius: var(--radius2);
+  padding: 11px 14px;
+  cursor:pointer;
+  transition: all .14s ease;
+  font-weight:850;
+  letter-spacing:.2px;
+}
+
+.btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.08);
+}
+
+.primary-btn{
+  background: linear-gradient(135deg, rgba(109,94,252,.95), rgba(20,184,166,.80));
+  border-color: rgba(255,255,255,.12);
+  box-shadow: 0 12px 28px rgba(109,94,252,.14);
+}
+
+.ghost-btn{background: transparent;}
+
+.btn:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* ---------------- Cards / Lists ---------------- */
+.grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:12px;
+}
+
+@media (min-width: 840px){
+  .grid{grid-template-columns: 1fr 1fr;}
+}
+
+.card{
+  background: rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius: var(--radius);
+  padding:16px;
+  box-shadow: var(--shadow2);
+}
+
+.card-title{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.card-title h3{
+  margin:0;
+  font-size:15px;
+  letter-spacing:.1px;
+}
+
+.card-meta{
+  margin:0;
+  font-size:12px;
+  color: rgba(255,255,255,.62);
+}
+
+.preview-text{
+  margin: 10px 0 0;
   font-size: 13px;
-  cursor: pointer;
-  transition: 0.2s;
+  color: rgba(255,255,255,.86);
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
-.aspect-badge:hover {
-  background: var(--primary-light);
+/* ---------------- Badges ---------------- */
+.badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
 }
 
-.aspect-badge.active {
-  background: var(--primary);
-  color: white;
+.badge{
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.86);
 }
 
-/* ===========================================
- BUTTONS
-=========================================== */
-.btn {
-  padding: 12px 18px;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 15px;
-  transition: 0.2s;
+.badge.ok{background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.25)}
+.badge.warn{background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.25)}
+.badge.danger{background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.25)}
+.badge.brand{background: rgba(109,94,252,.14); border-color: rgba(109,94,252,.28)}
+
+/* ---------------- Table ---------------- */
+.table{
+  width:100%;
+  border-collapse: collapse;
+  overflow:hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.02);
 }
 
-.primary-btn {
-  background: var(--primary);
-  color: white;
-}
-
-.primary-btn:hover {
-  background: var(--primary-hover);
-}
-
-.ghost-btn {
-  background: #f3f4f6;
-  color: var(--text);
-}
-
-.ghost-btn:hover {
-  background: #e5e7eb;
-}
-
-.neon-btn {
-  background: var(--primary-light);
-  color: var(--primary);
-}
-
-.neon-btn:hover {
-  background: var(--primary);
-  color: white;
-}
-
-.form-actions {
-  margin-top: 25px;
-  display: flex;
-  gap: 12px;
-}
-
-/* ===========================================
- SCHEDULED / DRAFT CARDS
-=========================================== */
-.scheduled-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-top: 15px;
-}
-
-.scheduled-item {
-  background: var(--card-bg);
-  padding: 20px;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  box-shadow: var(--shadow-soft);
-  transition: 0.2s;
-}
-
-.scheduled-item:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
-}
-
-.scheduled-main {
-  max-width: 70%;
-}
-
-.scheduled-text {
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.scheduled-meta {
-  margin-top: 6px;
-  color: var(--text-light);
+.table th, .table td{
+  text-align:left;
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
   font-size: 13px;
+  vertical-align: top;
 }
 
-.scheduled-time {
-  font-size: 14px;
-  color: var(--primary);
-  font-weight: 600;
-  min-width: 140px;
+.table th{
+  color: rgba(255,255,255,.72);
+  font-weight:900;
+  background: rgba(255,255,255,.04);
+}
+
+.table tr:hover td{background: rgba(255,255,255,.03)}
+
+/* ---------------- RTL (Arabic/Persian) ---------------- */
+body.rtl{
+  direction: rtl;
+}
+
+body.rtl .topbar-inner{
+  flex-direction: row-reverse;
+}
+
+body.rtl .nav{
+  flex-direction: row-reverse;
+}
+
+body.rtl .form-actions{
+  justify-content: flex-start;
+}
+
+body.rtl .table th, body.rtl .table td{
   text-align: right;
-}
-
-/* ===========================================
- PLATFORM CHIPS (icon rozetleri)
-=========================================== */
-.platform-chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.platform-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  border: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.platform-chip-emoji {
-  font-size: 15px;
-}
-
-/* ===========================================
- MOBILE RESPONSIVE
-=========================================== */
-@media (max-width: 680px) {
-  .app-header {
-      flex-direction: column;
-      gap: 15px;
-      text-align: center;
-  }
-
-  .form-card {
-      padding: 20px;
-  }
-
-  .scheduled-item {
-      flex-direction: column;
-      gap: 12px;
-  }
-
-  .scheduled-time {
-      text-align: left;
-  }
 }

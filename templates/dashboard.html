@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="app-shell">
+    <h1 class="page-title">Takvim &amp; Analiz</h1>
+    <p class="page-subtitle">Burası şimdilik basit, ileride grafikler ve takvim ekleriz.</p>
+
+    <div class="panel panel-secondary">
+        <h2 class="panel-title">Planlanan Gönderiler</h2>
+        {% if scheduled_posts %}
+            <ul class="simple-list">
+                {% for post in scheduled_posts %}
+                    <li>
+                        <strong>{{ post.schedule_time }}</strong> —
+                        {{ post.platforms|join(", ") if post.platforms else "Platform yok" }} —
+                        {{ post.text[:80] }}{% if post.text|length > 80 %}...{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-text">Henüz kayıtlı gönderi yok.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

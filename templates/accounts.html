@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="form-card" style="margin-bottom:14px;">
+  <h1 class="page-title" style="margin-bottom:4px;">Hesaplar</h1>
+  <p class="page-desc">Token ve platform ayarları <code>data/accounts.json</code> dosyasına kaydedilir.</p>
+
+  {% set msg = request.args.get('msg') %}
+  {% set level = request.args.get('level', 'ok') %}
+  {% if msg %}
+    <p class="small" style="margin:8px 0 10px 0;">
+      <span class="badge {% if level == 'ok' %}ok{% else %}warn{% endif %}">{{ msg }}</span>
+    </p>
+  {% endif %}
+
+  {% set fb = accounts.get('facebook', {}) %}
+  {% set ig = accounts.get('instagram', {}) %}
+  <div class="form-actions" style="justify-content:flex-start; border-top:0; padding-top:0; margin-top:0;">
+    {% if fb.get('status') == 'connected' %}
+      <span class="badge ok">Facebook bağlı: {{ fb.get('account_name') or 'Sayfa seçili' }}</span>
+      {% if ig.get('ig_business_id') %}
+        <span class="badge brand">Instagram ID: {{ ig.get('ig_business_id') }}</span>
+      {% else %}
+        <span class="badge warn">Instagram ID yok</span>
+      {% endif %}
+      <span class="muted" style="display:inline-block;">Bağlantı tamamlandı. Tekrar bağlanmak gerekmez.</span>
+      <a class="btn" href="{{ url_for('meta_refresh_instagram') }}">Instagram ID Yenile</a>
+      <details style="display:inline-block;">
+        <summary class="btn" style="cursor:pointer; list-style:none;">Yetkiyi Yenile</summary>
+        <div style="margin-top:8px;">
+          <a class="btn" href="{{ url_for('meta_start') }}">Meta Yetkisini Yeniden İste</a>
+        </div>
+      </details>
+    {% else %}
+      <a class="btn primary-btn" href="{{ url_for('meta_start') }}">Meta ile Bağlan (Facebook + Instagram)</a>
+    {% endif %}
+    <a class="btn" href="{{ url_for('x_test_token_route') }}">X Token Test Et</a>
+  </div>
+</div>
+
+<div class="form-card" style="margin-bottom:14px;">
+  <h2 style="margin-top:0;">Platform Ayarı Güncelle</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="upsert">
+
+    <div class="form-row">
+      <label class="form-label" for="platform">Platform</label>
+      <select id="platform" name="platform" class="input" required>
+        <option value="">Seç...</option>
+        <option value="facebook">Facebook</option>
+        <option value="instagram">Instagram</option>
+        <option value="x">X</option>
+        <option value="youtube">YouTube</option>
+        <option value="tiktok">TikTok</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="account_name">Hesap Adı</label>
+      <input id="account_name" name="account_name" class="input" placeholder="Sayfa adı veya kullanıcı adı" />
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="access_token">Token</label>
+      <input id="access_token" name="access_token" class="input" placeholder="Token (opsiyonel)" />
+      <p class="helper-text">
+        X için şu an Bearer token ile metin post desteklenir. YouTube/TikTok gerçek entegrasyonu sıradaki adım.
+      </p>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="note">Not</label>
+      <input id="note" name="note" class="input" placeholder="Opsiyonel not" />
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="enabled">Durum</label>
+      <select id="enabled" name="enabled" class="input">
+        <option value="1">Aktif</option>
+        <option value="0">Pasif</option>
+      </select>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn primary-btn">Kaydet</button>
+    </div>
+  </form>
+</div>
+
+<div class="form-card">
+  <h2 style="margin-top:0;">Kayıtlı Hesaplar</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Platform</th>
+        <th>Durum</th>
+        <th>Hesap</th>
+        <th>ID</th>
+        <th>Token</th>
+        <th>Güncelleme</th>
+        <th>İşlem</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for platform, acc in accounts.items() %}
+        {% set token = acc.page_access_token if platform == 'facebook' else acc.access_token %}
+        {% set pid = acc.page_id if platform == 'facebook' else (acc.ig_business_id if platform == 'instagram' else '') %}
+        <tr>
+          <td>{{ platform }}</td>
+          <td>
+            {% if acc.status == 'connected' %}
+              <span class="badge ok">connected</span>
+            {% else %}
+              <span class="badge warn">not_connected</span>
+            {% endif %}
+          </td>
+          <td>{{ acc.account_name or '-' }}</td>
+          <td>{{ pid or '-' }}</td>
+          <td>
+            {% if token %}
+              {{ token[:10] }}...
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{{ acc.updated_at or '-' }}</td>
+          <td>
+            <form method="post">
+              <input type="hidden" name="action" value="disconnect">
+              <input type="hidden" name="platform" value="{{ platform }}">
+              <button type="submit" class="btn">Sıfırla</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -2,60 +2,38 @@
 {% block content %}
 
 <div class="form-card">
-    <h1 class="page-title" data-i18n="nav_drafts">Hazırlananlar</h1>
-    <p class="page-desc">
-        Tamamlamadığın, taslak olarak kaydettiğin gönderiler burada listelenecek.
-    </p>
+  <h1 class="page-title" data-i18n="page_drafts_title">Taslaklar</h1>
 
-    {% if posts %}
-        {% set icons = {
-            'instagram': '📸 Instagram',
-            'facebook': '📘 Facebook',
-            'x': '𝕏 Twitter',
-            'youtube': '▶️ YouTube',
-            'tiktok': '🎵 TikTok'
-        } %}
-
-        <div class="scheduled-list">
-            {% for post in posts %}
-                <div class="scheduled-item">
-                    <div class="scheduled-main">
-                        <div class="scheduled-text">{{ post.text }}</div>
-
-                        <div class="scheduled-meta">
-                            <div class="platform-chip-group">
-                                {% for p in post.platforms %}
-                                    <div class="platform-chip">
-                                        <span class="platform-chip-emoji">
-                                            {{ icons.get(p, '📌') }}
-                                        </span>
-                                    </div>
-                                {% endfor %}
-                            </div>
-
-                            <div style="margin-top:6px;">
-                                <span>Taslak</span>
-                                {% if post.aspect_ratio %}
-                                    <span>•</span>
-                                    <span>{{ post.aspect_ratio }}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="scheduled-time">
-                        {% if post.schedule_at %}
-                            {{ post.schedule_at }}
-                        {% else %}
-                            (Tarih seçilmemiş)
-                        {% endif %}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="helper-text">Henüz kaydedilmiş taslak gönderin yok.</p>
-    {% endif %}
+  {% if posts and posts|length > 0 %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th data-i18n="col_text">Metin</th>
+          <th data-i18n="col_platforms">Platformlar</th>
+          <th data-i18n="col_format">Format</th>
+          <th data-i18n="col_schedule">Zaman</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in posts %}
+          <tr>
+            <td><div class="preview-text">{{ p.get('text','') }}</div></td>
+            <td>
+              <div class="badges">
+                {% for pl in p.get('platforms',[]) %}
+                  <span class="badge">{{ pl }}</span>
+                {% endfor %}
+              </div>
+            </td>
+            <td><span class="badge">{{ p.get('format','') }}</span></td>
+            <td><span class="badge">{{ p.get('schedule_at','') }}</span></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="helper-text" data-i18n="empty_list">Henüz kayıt yok.</p>
+  {% endif %}
 </div>
 
 {% endblock %}

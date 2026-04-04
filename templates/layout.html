@@ -1,46 +1,49 @@
-<!DOCTYPE html>
-<html lang="tr">
+<!doctype html>
+<html lang="tr" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <title>MySocial Panel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MySocial Panel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="app-body">
+<body>
 
-<div class="app-shell">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-title" data-i18n="app_title">MySocial Panel</span>
+      </div>
 
-    <header class="app-header">
-        <div class="app-logo">
-            <span class="logo-dot"></span>
-            <span data-i18n="app_title">MySocial Panel</span>
-        </div>
+      <nav class="nav">
+        <a href="{{ url_for('home') }}" class="{% if request.path == '/' %}active{% endif %}" data-i18n="nav_home">Ana Sayfa</a>
+        <a href="{{ url_for('prepare') }}" class="{% if request.path in ['/create','/prepare'] %}active{% endif %}" data-i18n="nav_create">Gönderi Oluştur</a>
+        <a href="{{ url_for('tasks') }}" class="{% if request.path == '/tasks' %}active{% endif %}" data-i18n="nav_scheduled">Zamanlanmış</a>
+        <a href="{{ url_for('queue_view') }}" class="{% if request.path == '/queue' %}active{% endif %}">Kuyruk</a>
+        <a href="{{ url_for('worker_logs_view') }}" class="{% if request.path == '/worker-logs' %}active{% endif %}">Worker Log</a>
+        <a href="{{ url_for('archive_view') }}" class="{% if request.path == '/archive' %}active{% endif %}">Arşiv</a>
+        <a href="{{ url_for('drafts') }}" class="{% if request.path == '/drafts' %}active{% endif %}" data-i18n="nav_drafts">Taslaklar</a>
+        <a href="{{ url_for('accounts') }}" class="{% if request.path == '/accounts' %}active{% endif %}">Hesaplar</a>
+      </nav>
 
-        <nav class="app-nav">
-            <a href="/" class="top-link" data-i18n="nav_home">Ana Sayfa</a>
-            <a href="/prepare" class="top-link" data-i18n="nav_create">Gönderi Oluştur</a>
-            <a href="/tasks" class="top-link" data-i18n="nav_scheduled">Zamanlanmış</a>
-            <a href="/drafts" class="top-link" data-i18n="nav_drafts">Hazırlananlar</a>
-        </nav>
+      <div class="topbar-right">
+        <select class="select" id="lang-select" aria-label="Language">
+          <option value="tr">TR</option>
+          <option value="en">EN</option>
+          <option value="ar">AR</option>
+          <option value="fa">FA</option>
+          <option value="fr">FR</option>
+          <option value="ja">JA</option>
+        </select>
+      </div>
+    </div>
+  </div>
 
-        <div class="lang-switcher">
-            <label for="lang-select" class="lang-label" data-i18n="lang_label">Dil</label>
-            <select id="lang-select" onchange="changeLanguage(this)">
-                <option value="tr">TR</option>
-                <option value="en">EN</option>
-                <option value="fr">FR</option>
-                <option value="it">IT</option>
-                <option value="ja">日本語</option>
-                <option value="ar">العربية</option>
-            </select>
-        </div>
-    </header>
-
+  <div class="container">
     {% block content %}{% endblock %}
+  </div>
 
-</div>
-
-<script src="{{ url_for('static', filename='translations.js') }}"></script>
-<script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='translations.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="form-card">
+  <h1 class="page-title">Facebook Page Seç</h1>
+  <p class="page-desc">Bağlamak istediğin sayfayı seç. Seçilen sayfanın access token'ı <code>data/accounts.json</code> dosyasına kaydedilecek.</p>
+
+  {% if not pages %}
+    <div class="card"><p class="card-meta">Sayfa bulunamadı.</p></div>
+  {% else %}
+    <div class="grid">
+      {% for p in pages %}
+        <div class="card">
+          <h3 style="margin-top:0;">{{ p.name or '-' }}</h3>
+          <p class="small">Page ID: <b>{{ p.id or '-' }}</b></p>
+
+          {% if p.instagram_business_account %}
+            <p class="small">
+              IG: <b>{{ p.instagram_business_account.username or '-' }}</b>
+              ({{ p.instagram_business_account.id or '-' }})
+            </p>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('meta_select_page') }}">
+            <input type="hidden" name="state" value="{{ state }}">
+            <input type="hidden" name="page_id" value="{{ p.id }}">
+            <button type="submit" class="btn primary-btn">Bu Sayfayı Bağla</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

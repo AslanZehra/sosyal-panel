@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h1 class="page-title">Arşiv</h1>
+<p class="page-desc">Başarılı gönderimler burada tutulur.</p>
+
+{% if not items %}
+  <div class="card"><p class="card-meta">Arşiv boş.</p></div>
+{% else %}
+  <div class="grid">
+    {% for j in items %}
+      <div class="card">
+        <div class="card-title">
+          <h3>{{ (j.text or '')[:60] if (j.text or '') else 'Gönderi' }}</h3>
+          <span class="badge {% if j.status == 'sent' %}ok{% else %}warn{% endif %}">{{ j.status or '-' }}</span>
+        </div>
+
+        <div class="badges" style="margin-bottom:8px;">
+          {% for pl in (j.platforms or []) %}
+            <span class="badge brand">{{ pl }}</span>
+          {% endfor %}
+        </div>
+
+        <p class="small">Oluşturma: <b>{{ j.created_at or '-' }}</b></p>
+        <p class="small">Gönderim: <b>{{ j.sent_at or '-' }}</b></p>
+        <p class="small">Format: <b>{{ j.format or 'normal' }}</b></p>
+        <p class="small">Medya: <b>{{ (j.media or [])|length }}</b></p>
+        {% if j.last_error %}
+          <p class="small">Son Hata: <b>{{ j.last_error }}</b></p>
+        {% endif %}
+
+        <div class="preview-text">{{ j.text or '-' }}</div>
+
+        {% if j.logs and j.logs|length > 0 %}
+          <div style="margin-top:10px;">
+            {% for log in j.logs %}
+              <p class="small" style="margin:4px 0;">
+                [{{ log.platform or '-' }}] {{ 'ok' if log.ok else 'fail' }} - {{ log.message or '-' }} ({{ log.at or '-' }}){% if log.repeat %} x{{ log.repeat }}{% endif %}
+              </p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

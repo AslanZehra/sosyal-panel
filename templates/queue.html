@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h1 class="page-title">Kuyruk</h1>
+<p class="page-desc">Worker'ın işlemeyi beklediği gönderiler.</p>
+
+{% if not items %}
+  <div class="card"><p class="card-meta">Kuyruk boş.</p></div>
+{% else %}
+  <div class="grid">
+    {% for q in items %}
+      <div class="card">
+        <div class="card-title">
+          <h3>{{ (q.text or '')[:60] if (q.text or '') else 'Gönderi' }}</h3>
+          <span class="badge {% if q.status == 'queued' %}warn{% elif q.status == 'needs_auth' %}danger{% else %}brand{% endif %}">{{ q.status or '-' }}</span>
+        </div>
+
+        <div class="badges" style="margin-bottom:8px;">
+          {% for pl in (q.platforms or []) %}
+            <span class="badge brand">{{ pl }}</span>
+          {% endfor %}
+        </div>
+
+        <p class="small">Deneme: <b>{{ q.attempts or 0 }}</b></p>
+        <p class="small">Son Hata: <b>{{ q.last_error or '-' }}</b></p>
+        <p class="small">Retry: <b>{{ q.retry_after or '-' }}</b></p>
+        <p class="small">Planlanan: <b>{{ q.scheduled_at or '-' }}</b></p>
+        <p class="small">Format: <b>{{ q.format or 'normal' }}</b></p>
+        <p class="small">Medya: <b>{{ (q.media or [])|length }}</b></p>
+
+        <div class="preview-text">{{ q.text or '-' }}</div>
+
+        {% if q.logs and q.logs|length > 0 %}
+          <div style="margin-top:10px;">
+            {% for log in q.logs %}
+              <p class="small" style="margin:4px 0;">
+                [{{ log.platform or '-' }}] {{ 'ok' if log.ok else 'fail' }} - {{ log.message or '-' }} ({{ log.at or '-' }}){% if log.repeat %} x{{ log.repeat }}{% endif %}
+              </p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}
