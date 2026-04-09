@@ -7,6 +7,17 @@
     const btnAiHashtag = document.getElementById("btn-ai-hashtag");
   
     if (!postText || !hashtagsEl || !btnAiText || !btnAiHashtag) return;
+
+    function getLang() {
+      return localStorage.getItem("lang") || "tr";
+    }
+
+    function tr(key, fallback) {
+      if (typeof window.t === "function") {
+        return window.t(key, getLang());
+      }
+      return fallback;
+    }
   
     function getSelectedPlatform() {
       const checked = document.querySelector('input[name="platforms"]:checked');
@@ -31,7 +42,7 @@
   
     btnAiText.addEventListener("click", async () => {
       const topic = (postText.value || "").trim();
-      if (!topic) { alert("Önce gönderi metni/brief yaz."); return; }
+      if (!topic) { alert(tr("alert_write_brief_first", "Önce gönderi metni/brief yaz.")); return; }
   
       btnAiText.disabled = true;
       try {
@@ -40,11 +51,11 @@
           tone: "samimi",
           platform: getSelectedPlatform(),
           format: getSelectedFormat(),
-          language: "tr",
+          language: getLang(),
         });
         postText.value = data.text || topic;
       } catch (e) {
-        alert("AI metin hatası: " + e.message);
+        alert(tr("alert_ai_text_error", "AI metin hatası: ") + e.message);
       } finally {
         btnAiText.disabled = false;
       }
@@ -56,11 +67,14 @@
       let base = (fromPost || fromHashtags || "").slice(0, 500);
 
       if (!base) {
-        const typedTopic = window.prompt("Kısa konu yaz (ör: kahve dükkanı açılışı):", "");
+        const typedTopic = window.prompt(
+          tr("prompt_topic_short", "Kısa konu yaz (ör: kahve dükkanı açılışı):"),
+          ""
+        );
         base = (typedTopic || "").trim().slice(0, 500);
       }
 
-      if (!base) { alert("Hashtag önerisi için kısa bir konu/metin gir."); return; }
+      if (!base) { alert(tr("alert_hashtag_need_topic", "Hashtag önerisi için kısa bir konu/metin gir.")); return; }
   
       btnAiHashtag.disabled = true;
       try {
@@ -71,7 +85,7 @@
         });
         hashtagsEl.value = (data.hashtags || []).join(" ");
       } catch (e) {
-        alert("AI hashtag hatası: " + e.message);
+        alert(tr("alert_ai_hashtag_error", "AI hashtag hatası: ") + e.message);
       } finally {
         btnAiHashtag.disabled = false;
       }

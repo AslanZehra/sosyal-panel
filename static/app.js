@@ -19,6 +19,17 @@
   const stagedFiles = [];
   const canStageFiles = typeof DataTransfer !== "undefined";
 
+  function getCurrentLang() {
+    return localStorage.getItem("lang") || "tr";
+  }
+
+  function tr(key, fallback) {
+    if (typeof window.t === "function") {
+      return window.t(key, getCurrentLang());
+    }
+    return fallback;
+  }
+
   function fileKey(f) {
     return `${f.name}::${f.size}::${f.lastModified}`;
   }
@@ -76,12 +87,15 @@
   function renderStagedFiles() {
     if (!mediaSelectionInfo || !mediaSelectionList) return;
     if (!stagedFiles.length) {
-      mediaSelectionInfo.textContent = "Henüz medya seçilmedi.";
+      mediaSelectionInfo.textContent = tr("helper_no_media_selected", "Henüz medya seçilmedi.");
       mediaSelectionList.textContent = "";
       return;
     }
 
-    mediaSelectionInfo.textContent = `${stagedFiles.length} medya seçildi.`;
+    mediaSelectionInfo.textContent = tr("helper_media_selected_count", "{count} medya seçildi.").replace(
+      "{count}",
+      String(stagedFiles.length)
+    );
     mediaSelectionList.textContent = stagedFiles.map((f) => f.name).join(" • ");
   }
 
@@ -95,9 +109,15 @@
 
     if (mediaModeNote) {
       if (fmt === "story") {
-        mediaModeNote.textContent = "Story için tek fotoğraf veya tek video seçebilirsin.";
+        mediaModeNote.textContent = tr(
+          "helper_story_single_media",
+          "Story için tek fotoğraf veya tek video seçebilirsin."
+        );
       } else {
-        mediaModeNote.textContent = "Normal/Short modunda birden fazla medya seçebilirsin.";
+        mediaModeNote.textContent = tr(
+          "helper_normal_multi_media",
+          "Normal/Short modunda birden fazla medya seçebilirsin."
+        );
       }
     }
 
@@ -133,7 +153,10 @@
         }
       });
       if (formatPlatformNote) {
-        formatPlatformNote.textContent = "Story modunda sadece Instagram aktiftir.";
+        formatPlatformNote.textContent = tr(
+          "helper_story_only_instagram",
+          "Story modunda sadece Instagram aktiftir."
+        );
       }
       return;
     }
@@ -223,6 +246,12 @@
       }
     });
   }
+
+  document.addEventListener("lang:changed", () => {
+    enforceMediaConstraints();
+    enforceFormatPlatformConstraints();
+    renderStagedFiles();
+  });
 
   setMediaAccept();
   enforceMediaConstraints();

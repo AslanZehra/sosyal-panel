@@ -19,11 +19,11 @@
         <a href="{{ url_for('home') }}" class="{% if request.path == '/' %}active{% endif %}" data-i18n="nav_home">Ana Sayfa</a>
         <a href="{{ url_for('prepare') }}" class="{% if request.path in ['/create','/prepare'] %}active{% endif %}" data-i18n="nav_create">Gönderi Oluştur</a>
         <a href="{{ url_for('tasks') }}" class="{% if request.path == '/tasks' %}active{% endif %}" data-i18n="nav_scheduled">Zamanlanmış</a>
-        <a href="{{ url_for('queue_view') }}" class="{% if request.path == '/queue' %}active{% endif %}">Kuyruk</a>
-        <a href="{{ url_for('worker_logs_view') }}" class="{% if request.path == '/worker-logs' %}active{% endif %}">Worker Log</a>
-        <a href="{{ url_for('archive_view') }}" class="{% if request.path == '/archive' %}active{% endif %}">Arşiv</a>
+        <a href="{{ url_for('queue_view') }}" class="{% if request.path == '/queue' %}active{% endif %}" data-i18n="nav_queue">Kuyruk</a>
+        <a href="{{ url_for('worker_logs_view') }}" class="{% if request.path == '/worker-logs' %}active{% endif %}" data-i18n="nav_worker_logs">Worker Log</a>
+        <a href="{{ url_for('archive_view') }}" class="{% if request.path == '/archive' %}active{% endif %}" data-i18n="nav_archive">Arşiv</a>
         <a href="{{ url_for('drafts') }}" class="{% if request.path == '/drafts' %}active{% endif %}" data-i18n="nav_drafts">Taslaklar</a>
-        <a href="{{ url_for('accounts') }}" class="{% if request.path == '/accounts' %}active{% endif %}">Hesaplar</a>
+        <a href="{{ url_for('accounts') }}" class="{% if request.path == '/accounts' %}active{% endif %}" data-i18n="nav_accounts">Hesaplar</a>
       </nav>
 
       <div class="topbar-right">
@@ -43,7 +43,7 @@
     {% block content %}{% endblock %}
   </div>
 
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
   <script src="{{ url_for('static', filename='translations.js') }}"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

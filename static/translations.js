@@ -9,10 +9,19 @@ const TRANSLATIONS = {
     nav_create: "Gönderi Oluştur",
     nav_scheduled: "Zamanlanmış",
     nav_drafts: "Hazırlananlar",
+    nav_queue: "Kuyruk",
+    nav_worker_logs: "Worker Log",
+    nav_archive: "Arşiv",
+    nav_accounts: "Hesaplar",
 
     page_prepare_title: "Gönderiyi Hazırla",
     page_prepare_desc:
-      "Metni yaz, platform/format seç, medya ekle ve zamanla. Tek sefer, gün seçmeli, periyodik veya toplu planlayabilirsin.",
+      "Metni yaz, platform/format seç, medya ekle ve zamanla. Şimdi gönder, tek sefer, aralıklı veya kampanya modu kullanabilirsin.",
+    label_schedule_mode: "Gönderim Modu",
+    schedule_now: "Şimdi Gönder (kuyruğa al)",
+    schedule_one_shot: "Tek Sefer (tarih/saat)",
+    schedule_interval: "Aralıklı (dakika bazlı)",
+    schedule_campaign: "Kampanya (günde N + tarih aralığı)",
 
     label_plan_type: "Plan Türü",
     plan_one_shot: "Tek Sefer (tarih/saat)",
@@ -49,6 +58,31 @@ const TRANSLATIONS = {
     label_media_add: "Medya Ekle",
 
     label_one_shot_time: "Tek Sefer Zamanlama",
+    label_interval_start: "Aralıklı Başlangıç",
+    label_interval_minutes: "Aralık (dakika)",
+    helper_interval_example: "Örn: 60 = saatte bir, 1440 = günde bir",
+    label_campaign_start: "Kampanya Başlangıç",
+    label_campaign_end_date: "Kampanya Bitiş (Tarih)",
+    label_campaign_per_day: "Günde Kaç Paylaşım",
+    helper_campaign_example: "Örn: 20 => yaklaşık her 72 dakikada bir paylaşım.",
+    label_targets: "Hedefler (Opsiyonel: Sayfa/Grup)",
+    placeholder_targets: "facebook:page:1090443410810890\nfacebook:group:1234567890\ninstagram:self",
+    helper_targets_format:
+      "Satır formatı: platform:tür:id (tür: page/group/self). Boş bırakırsan varsayılan hesaba paylaşır.",
+    helper_media_add_multi:
+      "Birden fazla dosya için tek seçimde toplu seçebilir veya tekrar tekrar ekleyebilirsin.",
+    helper_no_media_selected: "Henüz medya seçilmedi.",
+    helper_media_selected_count: "{count} medya seçildi.",
+    helper_story_single_media: "Story için tek fotoğraf veya tek video seçebilirsin.",
+    helper_normal_multi_media: "Normal/Short modunda birden fazla medya seçebilirsin.",
+    helper_story_only_instagram: "Story modunda sadece Instagram aktiftir.",
+    btn_ai_text: "AI ile Metin Öner",
+    btn_ai_hashtag: "AI ile Hashtag Öner",
+    alert_write_brief_first: "Önce gönderi metni/brief yaz.",
+    alert_ai_text_error: "AI metin hatası: ",
+    prompt_topic_short: "Kısa konu yaz (ör: kahve dükkanı açılışı):",
+    alert_hashtag_need_topic: "Hashtag önerisi için kısa bir konu/metin gir.",
+    alert_ai_hashtag_error: "AI hashtag hatası: ",
 
     label_weekly_days: "Haftanın Günleri",
     day_mon: "Pzt",
@@ -91,10 +125,19 @@ const TRANSLATIONS = {
     nav_create: "Create Post",
     nav_scheduled: "Scheduled",
     nav_drafts: "Drafts",
+    nav_queue: "Queue",
+    nav_worker_logs: "Worker Log",
+    nav_archive: "Archive",
+    nav_accounts: "Accounts",
 
     page_prepare_title: "Prepare Post",
     page_prepare_desc:
-      "Write the text, choose platform/format, add media, and schedule it. You can plan one-time, weekly, periodic, or bulk posts.",
+      "Write the text, choose platform/format, add media, and schedule it. You can send now, one-time, interval, or campaign mode.",
+    label_schedule_mode: "Send Mode",
+    schedule_now: "Send Now (add to queue)",
+    schedule_one_shot: "One-time (date/time)",
+    schedule_interval: "Interval (minutes)",
+    schedule_campaign: "Campaign (N per day + date range)",
 
     label_plan_type: "Plan Type",
     plan_one_shot: "One-time (date/time)",
@@ -131,6 +174,31 @@ const TRANSLATIONS = {
     label_media_add: "Add Media",
 
     label_one_shot_time: "One-time Schedule",
+    label_interval_start: "Interval Start",
+    label_interval_minutes: "Interval (minutes)",
+    helper_interval_example: "Example: 60 = hourly, 1440 = daily",
+    label_campaign_start: "Campaign Start",
+    label_campaign_end_date: "Campaign End (Date)",
+    label_campaign_per_day: "Posts Per Day",
+    helper_campaign_example: "Ex: 20 => about one post every 72 minutes.",
+    label_targets: "Targets (Optional: Page/Group)",
+    placeholder_targets: "facebook:page:1090443410810890\nfacebook:group:1234567890\ninstagram:self",
+    helper_targets_format:
+      "Line format: platform:type:id (type: page/group/self). If empty, shares to default account.",
+    helper_media_add_multi:
+      "For multiple files, you can select many at once or keep adding in repeated picks.",
+    helper_no_media_selected: "No media selected yet.",
+    helper_media_selected_count: "{count} media selected.",
+    helper_story_single_media: "For Story, select a single photo or a single video.",
+    helper_normal_multi_media: "In Normal/Short mode you can select multiple media files.",
+    helper_story_only_instagram: "In Story mode, only Instagram is active.",
+    btn_ai_text: "Suggest Text with AI",
+    btn_ai_hashtag: "Suggest Hashtags with AI",
+    alert_write_brief_first: "Write post text/brief first.",
+    alert_ai_text_error: "AI text error: ",
+    prompt_topic_short: "Write a short topic (e.g. coffee shop opening):",
+    alert_hashtag_need_topic: "Enter a short topic/text for hashtag suggestions.",
+    alert_ai_hashtag_error: "AI hashtag error: ",
 
     label_weekly_days: "Days of Week",
     day_mon: "Mon",
@@ -172,6 +240,10 @@ const TRANSLATIONS = {
     nav_create: "إنشاء منشور",
     nav_scheduled: "المجدول",
     nav_drafts: "المسودات",
+    nav_queue: "الطابور",
+    nav_worker_logs: "سجل العامل",
+    nav_archive: "الأرشيف",
+    nav_accounts: "الحسابات",
 
     page_prepare_title: "تحضير المنشور",
     page_prepare_desc:
@@ -252,6 +324,10 @@ const TRANSLATIONS = {
     nav_create: "ساخت پست",
     nav_scheduled: "زمان‌بندی‌شده",
     nav_drafts: "پیش‌نویس‌ها",
+    nav_queue: "صف",
+    nav_worker_logs: "لاگ پردازشگر",
+    nav_archive: "آرشیو",
+    nav_accounts: "حساب‌ها",
 
     page_prepare_title: "آماده‌سازی پست",
     page_prepare_desc:
@@ -332,10 +408,19 @@ const TRANSLATIONS = {
     nav_create: "Créer",
     nav_scheduled: "Planifiés",
     nav_drafts: "Brouillons",
+    nav_queue: "File d'attente",
+    nav_worker_logs: "Logs worker",
+    nav_archive: "Archive",
+    nav_accounts: "Comptes",
 
     page_prepare_title: "Préparer une publication",
     page_prepare_desc:
-      "Rédige le texte, choisis la plateforme/le format, ajoute un média et planifie. Mode unique, hebdo, périodique ou en lot.",
+      "Rédige le texte, choisis la plateforme/le format, ajoute un média et planifie. Tu peux envoyer maintenant, en une fois, par intervalle ou en campagne.",
+    label_schedule_mode: "Mode d'envoi",
+    schedule_now: "Envoyer maintenant (file d'attente)",
+    schedule_one_shot: "Une fois (date/heure)",
+    schedule_interval: "Intervalle (minutes)",
+    schedule_campaign: "Campagne (N/jour + période)",
 
     label_plan_type: "Type de planification",
     plan_one_shot: "Une fois (date/heure)",
@@ -371,6 +456,32 @@ const TRANSLATIONS = {
 
     label_media_add: "Ajouter un média",
     label_one_shot_time: "Planification (une fois)",
+    label_interval_start: "Début de l'intervalle",
+    label_interval_minutes: "Intervalle (minutes)",
+    helper_interval_example: "Ex: 60 = toutes les heures, 1440 = tous les jours",
+    label_campaign_start: "Début de campagne",
+    label_campaign_end_date: "Fin de campagne (date)",
+    label_campaign_per_day: "Publications par jour",
+    helper_campaign_example: "Ex: 20 => environ une publication toutes les 72 minutes.",
+    label_targets: "Cibles (optionnel : page/groupe)",
+    placeholder_targets: "facebook:page:1090443410810890\nfacebook:group:1234567890\ninstagram:self",
+    helper_targets_format:
+      "Format par ligne : plateforme:type:id (type : page/group/self). Si vide, publication vers le compte par défaut.",
+    helper_media_add_multi:
+      "Pour plusieurs fichiers, tu peux en sélectionner plusieurs d'un coup ou en ajouter plusieurs fois.",
+    helper_no_media_selected: "Aucun média sélectionné.",
+    helper_media_selected_count: "{count} média sélectionné(s).",
+    helper_story_single_media: "Pour une Story, choisis une seule photo ou une seule vidéo.",
+    helper_normal_multi_media:
+      "En mode Normal/Short, tu peux sélectionner plusieurs médias.",
+    helper_story_only_instagram: "En mode Story, seul Instagram est actif.",
+    btn_ai_text: "Suggérer un texte (IA)",
+    btn_ai_hashtag: "Suggérer des hashtags (IA)",
+    alert_write_brief_first: "Écris d'abord le texte/brief de publication.",
+    alert_ai_text_error: "Erreur IA (texte) : ",
+    prompt_topic_short: "Écris un sujet court (ex : ouverture d'un café) :",
+    alert_hashtag_need_topic: "Entre un sujet/texte court pour proposer des hashtags.",
+    alert_ai_hashtag_error: "Erreur IA (hashtags) : ",
 
     label_weekly_days: "Jours de la semaine",
     day_mon: "Lun",
@@ -412,6 +523,10 @@ const TRANSLATIONS = {
     nav_create: "投稿作成",
     nav_scheduled: "予約",
     nav_drafts: "下書き",
+    nav_queue: "キュー",
+    nav_worker_logs: "ワーカーログ",
+    nav_archive: "アーカイブ",
+    nav_accounts: "アカウント",
 
     page_prepare_title: "投稿を準備",
     page_prepare_desc:
@@ -489,7 +604,7 @@ const TRANSLATIONS = {
 
 function t(key, lang) {
   const L = TRANSLATIONS[lang] || TRANSLATIONS.tr;
-  return (L && L[key]) ?? (TRANSLATIONS.tr[key] ?? key);
+  return (L && L[key]) ?? (TRANSLATIONS.en[key] ?? (TRANSLATIONS.tr[key] ?? key));
 }
 
 function applyLanguage(lang) {
@@ -510,6 +625,8 @@ function applyLanguage(lang) {
     const key = el.getAttribute("data-i18n-placeholder");
     el.setAttribute("placeholder", t(key, safeLang));
   });
+
+  document.dispatchEvent(new CustomEvent("lang:changed", { detail: { lang: safeLang } }));
 }
 
 document.addEventListener("DOMContentLoaded", () => {
