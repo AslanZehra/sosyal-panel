@@ -607,7 +607,13 @@ def meta_callback():
 
     user_access_token = token_payload.get("access_token")
     if not user_access_token:
-        return jsonify(token_payload), 400
+        return redirect(
+            url_for(
+                "accounts",
+                msg="Meta erişim anahtarı alınamadı. Lütfen yeniden bağlanmayı dene.",
+                level="warn",
+            )
+        )
 
     try:
         pages_res = requests.get(
@@ -625,12 +631,13 @@ def meta_callback():
 
     pages = pages_payload.get("data") or []
     if not pages:
-        return jsonify({
-            "ok": False,
-            "message": "Kullanıcıda yönetilen Facebook Page bulunamadı.",
-            "token_payload": token_payload,
-            "pages_payload": pages_payload,
-        }), 400
+        return redirect(
+            url_for(
+                "accounts",
+                msg="Yönetici olduğun Facebook Sayfası bulunamadı. Facebook penceresinde 'Ayarları düzenle' deyip Sayfalar erişimini aç.",
+                level="warn",
+            )
+        )
 
     if len(pages) == 1:
         save_meta_page_selection(pages[0], user_access_token)
