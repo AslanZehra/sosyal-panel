@@ -349,6 +349,76 @@ def get_token_scopes(user_token: str) -> list[str]:
     return []
 
 
+def get_token_debug_data(user_token: str) -> dict:
+    token = (user_token or "").strip()
+    if not token or not META_APP_ID or not META_APP_SECRET:
+        return {}
+    try:
+        res = requests.get(
+            "https://graph.facebook.com/debug_token",
+            params={
+                "input_token": token,
+                "access_token": f"{META_APP_ID}|{META_APP_SECRET}",
+            },
+            timeout=20,
+        )
+        res.raise_for_status()
+        payload = res.json()
+        data = payload.get("data") or {}
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        return {}
+    return {}
+
+
+def discover_pages_from_debug_targets(user_access_token: str) -> list[dict]:
+    data = get_token_debug_data(user_access_token)
+    granular = data.get("granular_scopes") or []
+    if not isinstance(granular, list):
+        return []
+
+    page_ids: list[str] = []
+    for item in granular:
+        if not isinstance(item, dict):
+            continue
+        scope = (item.get("scope") or "").strip()
+        if scope not in ("pages_show_list", "pages_manage_posts", "pages_read_engagement"):
+            continue
+        tids = item.get("target_ids") or []
+        if not isinstance(tids, list):
+            continue
+        for tid in tids:
+            sid = str(tid).strip()
+            if sid and sid not in page_ids:
+                page_ids.append(sid)
+
+    pages: list[dict] = []
+    for page_id in page_ids:
+        try:
+            res = requests.get(
+                _meta_graph_url(f"/{page_id}"),
+                params={
+                    "fields": "id,name,access_token,instagram_business_account{id,username},connected_instagram_account{id,username}",
+                    "access_token": user_access_token,
+                },
+                timeout=25,
+            )
+            res.raise_for_status()
+            page = res.json() if res.text else {}
+            if not isinstance(page, dict):
+                continue
+            if not page.get("id"):
+                continue
+            if not page.get("instagram_business_account") and page.get("connected_instagram_account"):
+                page["instagram_business_account"] = page.get("connected_instagram_account")
+            pages.append(page)
+        except Exception:
+            continue
+
+    return pages
+
+
 def save_meta_page_selection(page: dict, user_access_token: str) -> dict:
     accounts = load_accounts()
     fb = accounts.get("facebook", {})
@@ -630,6 +700,8 @@ def meta_callback():
         return f"Page listesi alinmadi: {exc}", 400
 
     pages = pages_payload.get("data") or []
+    if not pages:
+        pages = discover_pages_from_debug_targets(user_access_token)
     if not pages:
         return redirect(
             url_for(
