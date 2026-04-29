@@ -823,7 +823,19 @@ def enforce_login_for_app():
         return None
     if endpoint == "static" or request.path.startswith("/static/"):
         return None
-    if endpoint in {"login", "register", "uploaded_file", "meta_callback", "meta_select_page"}:
+    if endpoint in {
+        "home",
+        "login",
+        "register",
+        "pricing",
+        "privacy",
+        "terms",
+        "robots_txt",
+        "sitemap_xml",
+        "uploaded_file",
+        "meta_callback",
+        "meta_select_page",
+    }:
         return None
     if current_user_id():
         ensure_user_files()
@@ -837,7 +849,7 @@ def enforce_login_for_app():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if current_user_id():
-        return redirect(url_for("home"))
+        return redirect(url_for("app_home"))
 
     form_error = ""
     if request.method == "POST":
@@ -858,7 +870,7 @@ def register():
             user = get_user_by_id(user_id)
             login_user_session(user)
             migrate_legacy_data_if_needed(user_id)
-            return redirect(url_for("home"))
+            return redirect(url_for("app_home"))
 
     return render_template("auth_register.html", form_error=form_error)
 
@@ -866,7 +878,7 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user_id():
-        return redirect(url_for("home"))
+        return redirect(url_for("app_home"))
 
     form_error = ""
     if request.method == "POST":
@@ -879,7 +891,7 @@ def login():
         else:
             login_user_session(user)
             migrate_legacy_data_if_needed(int(user["id"]))
-            return redirect(url_for("home"))
+            return redirect(url_for("app_home"))
 
     return render_template("auth_login.html", form_error=form_error)
 
@@ -895,9 +907,75 @@ def logout():
 # HOME
 # -----------------------------
 @app.route("/")
-@login_required
 def home():
+    if current_user_id():
+        return redirect(url_for("app_home"))
+    return render_template("public_home.html")
+
+
+@app.route("/app")
+@app.route("/dashboard")
+@login_required
+def app_home():
     return render_template("index.html")
+
+
+@app.route("/pricing")
+def pricing():
+    return render_template("pricing.html")
+
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+
+@app.route("/terms")
+def terms():
+    return render_template("terms.html")
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    content = "\n".join(
+        [
+            "User-agent: *",
+            "Allow: /",
+            f"Sitemap: {request.url_root.rstrip('/')}/sitemap.xml",
+            "",
+        ]
+    )
+    return app.response_class(content, mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    base = (os.getenv("PUBLIC_BASE_URL") or request.url_root.rstrip("/")).rstrip("/")
+    pages = [
+        ("", "weekly"),
+        ("/pricing", "monthly"),
+        ("/privacy", "yearly"),
+        ("/terms", "yearly"),
+        ("/login", "monthly"),
+        ("/register", "monthly"),
+    ]
+    rows = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    stamp = _iso(_now())
+    for path, changefreq in pages:
+        rows.extend(
+            [
+                "  <url>",
+                f"    <loc>{base}{path}</loc>",
+                f"    <lastmod>{stamp}</lastmod>",
+                f"    <changefreq>{changefreq}</changefreq>",
+                "  </url>",
+            ]
+        )
+    rows.append("</urlset>")
+    return app.response_class("\n".join(rows), mimetype="application/xml")
 
 
 # -----------------------------

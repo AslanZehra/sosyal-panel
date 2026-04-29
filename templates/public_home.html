@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<section class="hero-panel public-hero">
+  <p class="hero-kicker">Public Beta</p>
+  <h1 class="page-title">Sosyal medya içeriklerini üret, planla ve tek panelden yönet.</h1>
+  <p class="page-desc">
+    MySocial Panel; ekiplerin Facebook ve Instagram içerik operasyonunu tek bir workspace içinde toplaması için geliştirildi.
+    İçerik hazırlama, medya yükleme, planlama, kuyruk takibi ve arşiv yönetimi aynı akışta çalışır.
+  </p>
+  <div class="badges" style="margin-bottom:16px;">
+    <span class="badge ok">Çok kullanıcılı altyapı</span>
+    <span class="badge ok">Facebook + Instagram publish</span>
+    <span class="badge warn">Public beta aşaması</span>
+  </div>
+  <div class="hero-actions">
+    <a class="btn primary-btn" href="{{ url_for('register') }}">Ücretsiz Başla</a>
+    <a class="btn" href="{{ url_for('pricing') }}">Fiyatları Gör</a>
+  </div>
+</section>
+
+<div class="grid marketing-grid">
+  <div class="card">
+    <h3 style="margin-top:0;">Platform ne yapıyor?</h3>
+    <div class="feature-list">
+      <p>Takım üyeleri kendi hesabıyla giriş yapar ve kendi çalışma alanında içerik üretir.</p>
+      <p>Gönderiler anında ya da tek seferlik planlı olarak kuyruğa alınır.</p>
+      <p>Bağlı hesaplar, kuyruk, arşiv ve worker log ile operasyon tek ekrandan izlenir.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Kimler için?</h3>
+    <div class="feature-list">
+      <p>Küçük ajanslar</p>
+      <p>Birden fazla markayı yöneten freelancer ekipler</p>
+      <p>İçerik operasyonunu dağınık araçlardan çıkarmak isteyen işletmeler</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Public beta kapsamı</h3>
+    <div class="feature-list">
+      <p>Şu an en stabil üretim yolu Facebook ve Instagram publish akışıdır.</p>
+      <p>Çok kullanıcılı hesap yapısı eklendi; veri kullanıcı bazlı izole tutulur.</p>
+      <p>X, YouTube ve TikTok ürün yol haritasında dursa da henüz public beta kapsamına dahil değildir.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Bir sonraki adım</h3>
+    <div class="feature-list">
+      <p>Hesap oluştur</p>
+      <p>Meta hesabını bağla</p>
+      <p>İlk test gönderini oluştur</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
