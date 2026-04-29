@@ -1,53 +1,59 @@
 # MySocial Panel
 
-MySocial Panel, tek bir arayüz üzerinden birden fazla sosyal medya hesabını yönetmeyi hedefleyen bir web uygulamasıdır.  
-Amaç; örneğin Instagram, Facebook, YouTube Shorts vb. platformlar için **tek ekrandan** gönderi planlama, taslak kaydetme ve toplu paylaşım yapabilmektir.
+MySocial Panel, sosyal medya icerigini tek bir panelden yonetmek icin hazirlanan bir web uygulamasidir.
 
-## Özellikler (Planlananlar)
+Su anki hizli launch kapsami:
 
-- 📌 Çoklu platform seçimi (Instagram, Facebook, YouTube Shorts vb.)
-- 📝 Gönderi taslağı oluşturma (metin + görsel)
-- 💾 Taslakları kaydedip daha sonra düzenleyebilme
-- ⏰ Geleceğe tarih/saat vererek gönderi planlama
-- 🌓 Karanlık tema + neon detaylı modern arayüz
-- 📊 Gönderi listesi: Durum (Taslak / Zamanlandı / Paylaşıldı) ve platform etiketleri
-- 👥 Birden fazla hesap için altyapı (ileriki versiyonlarda)
+- Facebook + Instagram
+- Simdi Gonder + Tek Sefer planlama
+- Kuyruk + Arsiv + Hesap baglama + Worker log takibi
+
+Bu repo su an "tek yonetici paneli" seviyesindedir. Cok kullanicili SaaS yapisi henuz hedef kapsamda degildir.
+
+## Launch'ta hazir olanlar
+
+- Facebook ve Instagram icin gercek publish akisi
+- Metin + medya ile gonderi olusturma
+- Tek sefer planlama
+- Kuyruk, arsiv ve worker log ekranlari
+- Meta OAuth ile hesap baglama
+- Render uzerinden production deploy
 
 ## Teknolojiler
 
-- **Backend:** Python, Flask
-- **Frontend:** HTML, CSS, JavaScript
-- **Diğer:** JSON tabanlı basit veri saklama (ileride veritabanına taşınacak)
+- Backend: Python, Flask
+- Frontend: HTML, CSS, JavaScript
+- Diger: JSON tabanli veri saklama
 
-## Kurulum
-
-Aşağıdaki adımlar macOS üzerinde test edilmiştir.
+## Lokal kurulum
 
 ```bash
-# 1. Projeyi klonla
 git clone https://github.com/AslanZehra/sosyal-panel.git
 cd sosyal-panel
 
-# 2. Sanal ortam oluştur ve aktif et
 python3 -m venv venv
 source venv/bin/activate
-
-# 3. Gerekli paketleri yükle
 pip install -r requirements.txt
 
-# 4. Ortam dosyasını hazırla
 cp .env.example .env
 
-# 5. Uygulamayı çalıştır
-python main.py
-
-# 6. Worker'ı ayrı terminalde çalıştır
-python static/worker.py
+python3 main.py
+python3 static/worker.py
 ```
 
-## Production Deploy
+## Production deploy
 
-Production için `web + worker` tek servis içinde çalıştırılır:
+En kisa production yolu Render blueprint kullanmaktir:
 
-- Start command: `bash scripts/start_web_with_worker.sh`
-- Detaylı adımlar: [DEPLOY.md](DEPLOY.md)
+- `render.yaml` ile web service olustur
+- `APP_STORAGE_DIR`, `META_*`, `PUBLIC_BASE_URL` env'lerini gir
+- `FLASK_SECRET_KEY` ekle
+- Meta callback/domain ayarlarini production domaine tasi
+- Detayli adimlar icin [DEPLOY.md](DEPLOY.md)
+
+## Launch disinda biraktiklarimiz
+
+- X, YouTube, TikTok
+- Interval/campaign planlama
+- Ozel hedef secimi
+- Cok kullanicili hesap yonetimi

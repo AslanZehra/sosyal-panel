@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: mysocial-panel
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash scripts/start_web_with_worker.sh
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    disk:
+      name: app-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: APP_STORAGE_DIR
+        value: /var/data/mysocial
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_REDIRECT_URI
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.2-mini
+      - key: META_GRAPH_VERSION
+        value: v19.0
+      - key: META_LOGIN_SCOPE
+        value: pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish
+      - key: WORKER_POLL_SECONDS
+        value: "3"

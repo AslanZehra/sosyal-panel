@@ -258,6 +258,11 @@ a{color:inherit; text-decoration:none}
 
 .ghost-btn{background: transparent;}
 
+.danger-btn{
+  background: rgba(239,68,68,.14);
+  border-color: rgba(239,68,68,.30);
+}
+
 .btn:disabled{
   opacity:.6;
   cursor:not-allowed;
@@ -309,6 +314,73 @@ a{color:inherit; text-decoration:none}
   color: rgba(255,255,255,.86);
   line-height: 1.45;
   white-space: pre-wrap;
+}
+
+.toolbar-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin: 0 0 14px;
+  flex-wrap:wrap;
+}
+
+.card-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.inline-form{
+  margin:0;
+}
+
+.hero-panel{
+  background:
+    linear-gradient(135deg, rgba(109,94,252,.16), transparent 45%),
+    linear-gradient(180deg, rgba(16,26,58,.96), rgba(16,26,58,.90));
+  border:1px solid rgba(255,255,255,.10);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.hero-kicker{
+  display:inline-block;
+  margin:0 0 10px;
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(20,184,166,.12);
+  border:1px solid rgba(20,184,166,.24);
+  color: rgba(255,255,255,.88);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.2px;
+}
+
+.hero-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.feature-list{
+  display:grid;
+  gap:10px;
+}
+
+.feature-list p{
+  margin:0;
+  color: rgba(255,255,255,.78);
+  line-height:1.5;
+}
+
+.auth-shell{
+  max-width: 560px;
+  margin: 48px auto 0;
 }
 
 /* ---------------- Badges ---------------- */

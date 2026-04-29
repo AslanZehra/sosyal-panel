@@ -1,19 +1,26 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<h1 class="page-title">Zamanlanmış</h1>
+<h1 class="page-title">Planlanan</h1>
 <p class="page-desc">
-  Planlanan gönderiler burada. Kuyruk: <b>{{ queue_count }}</b> | Arşiv: <b>{{ archive_count }}</b>
+  Launch sürümünde burada sadece tek seferlik planlı gönderileri görürsün. Kuyruk: <b>{{ queue_count }}</b> | Arşiv: <b>{{ archive_count }}</b>
 </p>
 
 <div class="form-actions" style="justify-content:flex-start; border-top:0; padding-top:0; margin-top:0; margin-bottom:12px;">
+  <a class="btn primary-btn" href="{{ url_for('prepare') }}">Yeni Gönderi</a>
   <a class="btn" href="{{ url_for('queue_view') }}">Kuyruğu Aç</a>
   <a class="btn" href="{{ url_for('archive_view') }}">Arşivi Aç</a>
 </div>
 
+{% if hidden_count > 0 %}
+  <p class="small" style="margin:0 0 14px 0;">
+    <span class="badge warn">{{ hidden_count }} eski aralıklı/kampanya planı launch görünümünden gizlendi.</span>
+  </p>
+{% endif %}
+
 {% if not posts or posts|length == 0 %}
   <div class="card">
-    <p class="card-meta">Henüz zamanlanmış gönderi yok.</p>
+    <p class="card-meta">Henüz tek sefer planlı gönderi yok.</p>
   </div>
 {% else %}
   <div class="grid">
@@ -22,16 +29,11 @@
       <div class="card">
         <div class="card-title">
           <div>
-            <h3>
-              {% if p.type == 'one_shot' %}Tek Sefer{% endif %}
-              {% if p.type == 'interval' %}Aralıklı{% endif %}
-              {% if p.type == 'interval_range' %}Kampanya{% endif %}
-              {% if p.type not in ['one_shot', 'interval', 'interval_range'] %}{{ p.type or 'Plan' }}{% endif %}
-            </h3>
-            <p class="card-meta">Oluşturma: {{ p.created_at or '-' }}</p>
+            <h3>Tek Sefer</h3>
+            <p class="card-meta">Oluşturma: {{ p.created_at|local_dt if p.created_at else '-' }}</p>
           </div>
           <div class="badges">
-            <span class="badge {% if st in ['active','scheduled'] %}ok{% elif st in ['queued'] %}warn{% else %}brand{% endif %}">{{ st or '—' }}</span>
+            <span class="badge {% if st in ['active','scheduled'] %}ok{% elif st in ['queued'] %}warn{% elif st in ['needs_auth','failed'] %}danger{% else %}brand{% endif %}">{{ st or '—' }}</span>
           </div>
         </div>
 
@@ -45,23 +47,7 @@
           {% endif %}
         </div>
 
-        {% if p.type == 'one_shot' %}
-          <p class="small">Zaman: <b>{{ p.schedule_at or '-' }}</b></p>
-        {% elif p.type == 'interval' %}
-          <p class="small">Başlangıç: <b>{{ p.start_at or '-' }}</b></p>
-          <p class="small">Aralık: <b>{{ p.interval_min or '-' }}</b> dk</p>
-          <p class="small">Sonraki Çalışma: <b>{{ p.next_run_at or '-' }}</b></p>
-        {% elif p.type == 'interval_range' %}
-          <p class="small">Başlangıç: <b>{{ p.start_at or '-' }}</b></p>
-          <p class="small">Bitiş: <b>{{ p.end_at or '-' }}</b></p>
-          <p class="small">Günlük: <b>{{ p.per_day_count or '-' }}</b> paylaşım</p>
-          <p class="small">Aralık: <b>{{ p.interval_min or '-' }}</b> dk</p>
-          <p class="small">Sonraki Çalışma: <b>{{ p.next_run_at or '-' }}</b></p>
-        {% endif %}
-
-        {% if p.targets %}
-          <p class="small">Hedefler: <b>{{ p.targets }}</b></p>
-        {% endif %}
+        <p class="small">Zaman: <b title="{{ p.schedule_at or '-' }}">{{ p.schedule_at|local_dt if p.schedule_at else '-' }}</b></p>
 
         <div class="preview-text">{{ (p.text or '')[:220] }}{% if (p.text or '')|length > 220 %}…{% endif %}</div>
       </div>

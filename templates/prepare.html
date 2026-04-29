@@ -3,8 +3,12 @@
 
 <form class="form-card" method="POST" enctype="multipart/form-data">
   <h1 class="page-title" data-i18n="page_prepare_title">Gönderiyi Hazırla</h1>
-  <p class="page-desc" data-i18n="page_prepare_desc">
-    Metni yaz, platform/format seç, medya ekle ve zamanla.
+  <p class="page-desc">
+    Hızlı yayın modu açık. Şu an sadece Facebook ve Instagram için anında veya tek seferlik planlı gönderi oluşturabilirsin.
+  </p>
+  <p class="small" style="margin:0 0 14px 0;">
+    <span class="badge brand">Launch Scope</span>
+    Facebook + Instagram | Şimdi Gönder + Tek Sefer | Varsayılan bağlı hesap
   </p>
   {% if form_error %}
     <p class="small" style="margin:8px 0 12px 0;">
@@ -19,8 +23,6 @@
     <select class="input" name="schedule_mode" id="schedule-mode">
       <option value="now" data-i18n="schedule_now">Şimdi Gönder (kuyruğa al)</option>
       <option value="one_shot" data-i18n="schedule_one_shot">Tek Sefer (tarih/saat)</option>
-      <option value="interval" data-i18n="schedule_interval">Aralıklı (dakika bazlı)</option>
-      <option value="campaign" data-i18n="schedule_campaign">Kampanya (günde N + tarih aralığı)</option>
     </select>
   </div>
 
@@ -59,10 +61,8 @@
     <div class="pill-group">
       <label class="pill"><input type="checkbox" name="platforms" value="instagram"><span>Instagram</span></label>
       <label class="pill"><input type="checkbox" name="platforms" value="facebook"><span>Facebook</span></label>
-      <label class="pill"><input type="checkbox" name="platforms" value="x"><span>X</span></label>
-      <label class="pill"><input type="checkbox" name="platforms" value="youtube"><span>YouTube</span></label>
-      <label class="pill"><input type="checkbox" name="platforms" value="tiktok"><span>TikTok</span></label>
     </div>
+    <p class="helper-text">Launch sürümünde sadece bu iki platform açık.</p>
   </div>
 
   <div class="form-row">
@@ -98,48 +98,7 @@
     <input type="datetime-local" name="schedule_at" id="schedule-at" class="input">
   </div>
 
-  <div id="interval-wrap" style="display:none;">
-    <div class="form-row">
-      <label class="form-label" data-i18n="label_interval_start">Aralıklı Başlangıç</label>
-      <input type="datetime-local" name="interval_start_at" id="interval-start-at" class="input">
-    </div>
-    <div class="form-row">
-      <label class="form-label" data-i18n="label_interval_minutes">Aralık (dakika)</label>
-      <input type="number" class="input" name="interval_min" id="interval-min" value="60" min="1">
-      <p class="helper-text" data-i18n="helper_interval_example">Örn: 60 = saatte bir, 1440 = günde bir</p>
-    </div>
-  </div>
-
-  <div id="campaign-wrap" style="display:none;">
-    <div class="form-row">
-      <label class="form-label" data-i18n="label_campaign_start">Kampanya Başlangıç</label>
-      <input type="datetime-local" name="campaign_start_at" id="campaign-start-at" class="input">
-    </div>
-    <div class="form-row">
-      <label class="form-label" data-i18n="label_campaign_end_date">Kampanya Bitiş (Tarih)</label>
-      <input type="date" name="campaign_end_date" id="campaign-end-date" class="input">
-    </div>
-    <div class="form-row">
-      <label class="form-label" data-i18n="label_campaign_per_day">Günde Kaç Paylaşım</label>
-      <input type="number" class="input" name="campaign_per_day" id="campaign-per-day" value="20" min="1" max="96">
-      <p class="helper-text" data-i18n="helper_campaign_example">Örn: 20 => yaklaşık her 72 dakikada bir paylaşım.</p>
-    </div>
-  </div>
-
-  <div class="form-row">
-    <label class="form-label" data-i18n="label_targets">Hedefler (Opsiyonel: Sayfa/Grup)</label>
-    <textarea
-      id="targets"
-      name="targets"
-      class="input textarea"
-      rows="4"
-      data-i18n-placeholder="placeholder_targets"
-      placeholder="facebook:page:1090443410810890&#10;facebook:group:1234567890&#10;instagram:self"
-    ></textarea>
-    <p class="helper-text" data-i18n="helper_targets_format">
-      Satır formatı: <b>platform:tür:id</b> (tür: page/group/self). Boş bırakırsan varsayılan hesaba paylaşır.
-    </p>
-  </div>
+  <input type="hidden" id="targets" name="targets" value="">
 
   <div class="form-actions">
     <button type="button" class="btn ghost-btn" id="btn-save-draft" data-i18n="btn_save_draft">

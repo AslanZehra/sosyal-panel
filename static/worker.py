@@ -17,13 +17,23 @@ else:
     STORAGE_DIR = PROJECT_DIR
 
 DATA_DIR = STORAGE_DIR / "data"
+USERS_DATA_DIR = DATA_DIR / "users"
 load_dotenv(PROJECT_DIR / ".env")
 
-SCHEDULED_FILE = DATA_DIR / "scheduled_posts.json"
-QUEUE_FILE = DATA_DIR / "queue.json"
-ARCHIVE_FILE = DATA_DIR / "archive.json"
-ACCOUNTS_FILE = DATA_DIR / "accounts.json"
-WORKER_LOG_FILE = DATA_DIR / "worker.log"
+USER_FILE_NAMES = {
+    "scheduled": "scheduled_posts.json",
+    "queue": "queue.json",
+    "archive": "archive.json",
+    "accounts": "accounts.json",
+    "worker_log": "worker.log",
+}
+
+SCHEDULED_FILE = DATA_DIR / USER_FILE_NAMES["scheduled"]
+QUEUE_FILE = DATA_DIR / USER_FILE_NAMES["queue"]
+ARCHIVE_FILE = DATA_DIR / USER_FILE_NAMES["archive"]
+ACCOUNTS_FILE = DATA_DIR / USER_FILE_NAMES["accounts"]
+WORKER_LOG_FILE = DATA_DIR / USER_FILE_NAMES["worker_log"]
+ACTIVE_USER_ID = ""
 
 META_GRAPH_VERSION = os.getenv("META_GRAPH_VERSION", "v19.0").strip() or "v19.0"
 X_POST_URL = (os.getenv("X_POST_URL") or "https://api.x.com/2/tweets").strip()
@@ -36,6 +46,7 @@ MAX_ITEM_LOGS = 40
 MAX_WORKER_LOG_LINES = 1500
 
 DATA_DIR.mkdir(exist_ok=True)
+USERS_DATA_DIR.mkdir(exist_ok=True)
 
 
 def load_json(path: Path, default):
@@ -90,6 +101,8 @@ def append_worker_log(level: str, message: str, item_id: str = "", status: str =
         "level": level,
         "message": message,
     }
+    if ACTIVE_USER_ID:
+        rec["user_id"] = ACTIVE_USER_ID
     if item_id:
         rec["item_id"] = item_id
     if status:
@@ -98,7 +111,8 @@ def append_worker_log(level: str, message: str, item_id: str = "", status: str =
         rec["platforms"] = platforms
 
     # Keep stdout trace for terminal observers and persist to file for UI/debugging.
-    print(f"[{level}] {message}")
+    prefix = f"[user:{ACTIVE_USER_ID}] " if ACTIVE_USER_ID else ""
+    print(f"{prefix}[{level}] {message}")
     try:
         with WORKER_LOG_FILE.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -170,6 +184,22 @@ def is_permanent_publish_error(message: str) -> bool:
         "x medya yükleme entegrasyonu henüz tamamlanmadı",
     ]
     return any(sig in msg for sig in permanent_signatures)
+
+
+def is_auth_publish_error(message: str) -> bool:
+    msg = (message or "").strip().lower()
+    if not msg:
+        return False
+    auth_signatures = [
+        "error validating access token",
+        "invalid oauth access token",
+        "access token has expired",
+        "session has been invalidated",
+        "invalid access token",
+        "requires valid app id",
+        "the user changed their password",
+    ]
+    return any(sig in msg for sig in auth_signatures)
 
 
 def next_error_retry_minutes(attempts: int) -> int:
@@ -327,6 +357,22 @@ def default_accounts() -> dict:
     }
 
 
+def activate_user_storage(user_dir: Path) -> None:
+    global SCHEDULED_FILE, QUEUE_FILE, ARCHIVE_FILE, ACCOUNTS_FILE, WORKER_LOG_FILE, ACTIVE_USER_ID
+    ACTIVE_USER_ID = user_dir.name
+    SCHEDULED_FILE = user_dir / USER_FILE_NAMES["scheduled"]
+    QUEUE_FILE = user_dir / USER_FILE_NAMES["queue"]
+    ARCHIVE_FILE = user_dir / USER_FILE_NAMES["archive"]
+    ACCOUNTS_FILE = user_dir / USER_FILE_NAMES["accounts"]
+    WORKER_LOG_FILE = user_dir / USER_FILE_NAMES["worker_log"]
+
+
+def iter_user_dirs() -> list[Path]:
+    if not USERS_DATA_DIR.exists():
+        return []
+    return sorted([path for path in USERS_DATA_DIR.iterdir() if path.is_dir()], key=lambda path: path.name)
+
+
 def ensure_files():
     if not SCHEDULED_FILE.exists():
         save_json(SCHEDULED_FILE, [])
@@ -404,7 +450,7 @@ def publish_facebook(item: dict, accounts: dict) -> tuple[bool, str]:
     def call_facebook(url: str, payload: dict, timeout: int = 30, attempts: int = 3) -> tuple[bool, str, dict]:
         try:
             res, post_err = post_with_retry(url, payload, timeout=timeout, attempts=attempts)
-            if not res:
+            if res is None:
                 return False, f"network:{post_err}", {}
             pl = res.json() if res.text else {}
             if res.status_code >= 400:
@@ -598,7 +644,7 @@ def publish_instagram(item: dict, accounts: dict) -> tuple[bool, str]:
     def create_container(payload: dict) -> tuple[bool, str]:
         create_url = f"https://graph.facebook.com/{META_GRAPH_VERSION}/{ig_business_id}/media"
         res, post_err = post_with_retry(create_url, payload, timeout=50, attempts=3)
-        if not res:
+        if res is None:
             return False, f"network: {post_err}"
         pl = res.json() if res.text else {}
         if res.status_code >= 400:
@@ -621,7 +667,7 @@ def publish_instagram(item: dict, accounts: dict) -> tuple[bool, str]:
                 timeout=50,
                 attempts=3,
             )
-            if not publish_res:
+            if publish_res is None:
                 last_err = f"network: {post_err}"
                 continue
             publish_payload = publish_res.json() if publish_res.text else {}
@@ -753,7 +799,7 @@ def publish_x(item: dict, accounts: dict) -> tuple[bool, str]:
                 "Content-Type": "application/json",
             },
         )
-        if not res:
+        if res is None:
             return False, f"publish_error: x network: {post_err}"
 
         payload = res.json() if res.text else {}
@@ -843,7 +889,9 @@ def try_publish(item: dict, accounts: dict, t: dt.datetime) -> tuple[str, dict]:
             delivered.add(platform)
         else:
             last_fail_message = msg
-            if msg.startswith("needs_auth"):
+            if msg.startswith("needs_auth") or is_auth_publish_error(msg):
+                if not msg.startswith("needs_auth"):
+                    last_fail_message = f"needs_auth: {msg}"
                 needs_auth = True
             else:
                 has_error = True
@@ -1001,78 +1049,152 @@ def mark_scheduled_sent_if_needed(scheduled: list, queue_item: dict, t: dt.datet
     return changed
 
 
+def mark_scheduled_auth_required_if_needed(scheduled: list, queue_item: dict, t: dt.datetime) -> bool:
+    source_job_id = (queue_item.get("source_job_id") or "").strip()
+    if not source_job_id:
+        return False
+
+    changed = False
+    last_error = (queue_item.get("last_error") or "needs_auth").strip() or "needs_auth"
+    for job in scheduled:
+        if str(job.get("id", "")) != source_job_id:
+            continue
+
+        if (job.get("status") or "").strip().lower() != "needs_auth":
+            job["status"] = "needs_auth"
+            changed = True
+        if (job.get("last_error") or "").strip() != last_error:
+            job["last_error"] = last_error
+            changed = True
+        if (job.get("updated_at") or "").strip() != iso(t):
+            job["updated_at"] = iso(t)
+            changed = True
+
+    return changed
+
+
+def mark_accounts_auth_required_if_needed(accounts: dict, queue_item: dict, t: dt.datetime) -> bool:
+    failed_platforms = {
+        str(platform).strip().lower()
+        for platform in (queue_item.get("platforms") or [])
+        if str(platform).strip()
+    }
+    failed_platforms -= {
+        str(platform).strip().lower()
+        for platform in (queue_item.get("delivered_platforms") or [])
+        if str(platform).strip()
+    }
+    if not failed_platforms:
+        return False
+
+    changed = False
+    last_error = (queue_item.get("last_error") or "needs_auth").strip() or "needs_auth"
+    stamp = iso(t)
+    for platform in failed_platforms:
+        cfg = accounts.get(platform)
+        if not isinstance(cfg, dict):
+            continue
+
+        if (cfg.get("status") or "").strip().lower() != "needs_auth":
+            cfg["status"] = "needs_auth"
+            changed = True
+        if (cfg.get("note") or "").strip() != last_error:
+            cfg["note"] = last_error
+            changed = True
+        if (cfg.get("updated_at") or "").strip() != stamp:
+            cfg["updated_at"] = stamp
+            changed = True
+        accounts[platform] = cfg
+
+    return changed
+
+
 def main_loop():
-    ensure_files()
-    append_worker_log("info", "worker started. watching scheduled + queue")
+    logged_start_for: set[str] = set()
 
     while True:
         try:
-            scheduled = load_json(SCHEDULED_FILE, [])
-            queue = load_json(QUEUE_FILE, [])
-            archive = load_json(ARCHIVE_FILE, [])
-            accounts = normalize_accounts(load_json(ACCOUNTS_FILE, {}))
+            user_dirs = iter_user_dirs()
+            for user_dir in user_dirs:
+                activate_user_storage(user_dir)
+                ensure_files()
 
-            t = now()
-            changed = False
+                if ACTIVE_USER_ID not in logged_start_for:
+                    append_worker_log("info", "worker started. watching scheduled + queue")
+                    logged_start_for.add(ACTIVE_USER_ID)
 
-            # 1) move due scheduled -> queue
-            moved_count = move_due_jobs_to_queue(scheduled, queue, t)
-            if moved_count > 0:
-                changed = True
-                append_worker_log("info", f"moved_due_jobs={moved_count}")
+                scheduled = load_json(SCHEDULED_FILE, [])
+                queue = load_json(QUEUE_FILE, [])
+                archive = load_json(ARCHIVE_FILE, [])
+                accounts = normalize_accounts(load_json(ACCOUNTS_FILE, {}))
 
-            # 2) process queue
-            kept = []
-            for item in queue:
-                status = (item.get("status") or "queued").strip().lower()
-                retry_after = parse_iso(item.get("retry_after", ""))
+                t = now()
+                changed = False
+                accounts_changed = False
 
-                if status not in ("queued", "needs_auth", "error"):
-                    kept.append(item)
-                    continue
+                moved_count = move_due_jobs_to_queue(scheduled, queue, t)
+                if moved_count > 0:
+                    changed = True
+                    append_worker_log("info", f"moved_due_jobs={moved_count}")
 
-                if retry_after and retry_after > t:
-                    kept.append(item)
-                    continue
+                kept = []
+                for item in queue:
+                    status = (item.get("status") or "queued").strip().lower()
+                    retry_after = parse_iso(item.get("retry_after", ""))
 
-                decision, processed = try_publish(item, accounts, t)
-                changed = True
+                    if status not in ("queued", "needs_auth", "error"):
+                        kept.append(item)
+                        continue
 
-                if decision == "sent":
-                    archive.append(processed)
-                    if mark_scheduled_sent_if_needed(scheduled, processed, t):
-                        changed = True
-                    append_worker_log(
-                        "sent",
-                        f"item_sent id={processed.get('id')}",
-                        item_id=str(processed.get("id", "")),
-                        status=processed.get("status", ""),
-                        platforms=processed.get("platforms") or [],
-                    )
-                elif decision == "failed":
-                    archive.append(processed)
-                    append_worker_log(
-                        "failed",
-                        f"item_failed id={processed.get('id')} err={processed.get('last_error', '')}",
-                        item_id=str(processed.get("id", "")),
-                        status=processed.get("status", ""),
-                        platforms=processed.get("platforms") or [],
-                    )
-                else:
-                    kept.append(processed)
-                    append_worker_log(
-                        "retry",
-                        f"item_retry id={processed.get('id')} status={processed.get('status')} retry={processed.get('retry_after')}",
-                        item_id=str(processed.get("id", "")),
-                        status=processed.get("status", ""),
-                        platforms=processed.get("platforms") or [],
-                    )
+                    if retry_after and retry_after > t:
+                        kept.append(item)
+                        continue
 
-            if changed:
-                save_json(SCHEDULED_FILE, scheduled)
-                save_json(QUEUE_FILE, kept)
-                save_json(ARCHIVE_FILE, archive)
-                trim_log_file(WORKER_LOG_FILE, MAX_WORKER_LOG_LINES)
+                    decision, processed = try_publish(item, accounts, t)
+                    changed = True
+
+                    if decision == "sent":
+                        archive.append(processed)
+                        if mark_scheduled_sent_if_needed(scheduled, processed, t):
+                            changed = True
+                        append_worker_log(
+                            "sent",
+                            f"item_sent id={processed.get('id')}",
+                            item_id=str(processed.get("id", "")),
+                            status=processed.get("status", ""),
+                            platforms=processed.get("platforms") or [],
+                        )
+                    elif decision == "failed":
+                        archive.append(processed)
+                        append_worker_log(
+                            "failed",
+                            f"item_failed id={processed.get('id')} err={processed.get('last_error', '')}",
+                            item_id=str(processed.get("id", "")),
+                            status=processed.get("status", ""),
+                            platforms=processed.get("platforms") or [],
+                        )
+                    else:
+                        kept.append(processed)
+                        if (processed.get("status") or "").strip().lower() == "needs_auth":
+                            if mark_scheduled_auth_required_if_needed(scheduled, processed, t):
+                                changed = True
+                            if mark_accounts_auth_required_if_needed(accounts, processed, t):
+                                accounts_changed = True
+                        append_worker_log(
+                            "retry",
+                            f"item_retry id={processed.get('id')} status={processed.get('status')} retry={processed.get('retry_after')}",
+                            item_id=str(processed.get("id", "")),
+                            status=processed.get("status", ""),
+                            platforms=processed.get("platforms") or [],
+                        )
+
+                if changed or accounts_changed:
+                    save_json(SCHEDULED_FILE, scheduled)
+                    save_json(QUEUE_FILE, kept)
+                    save_json(ARCHIVE_FILE, archive)
+                    if accounts_changed:
+                        save_json(ACCOUNTS_FILE, accounts)
+                    trim_log_file(WORKER_LOG_FILE, MAX_WORKER_LOG_LINES)
 
         except Exception as e:
             append_worker_log("error", f"worker error: {e}")

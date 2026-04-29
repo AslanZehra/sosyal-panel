@@ -1,21 +1,59 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<div class="app-shell home-card">
-    <h1 class="page-title">MySocial Panel'e Hoş Geldin</h1>
-    <p class="intro-text">
-        Tüm sosyal medya içeriklerini tek yerden yönet:
-        gönderi hazırla, zamanla, taslaklarını düzenle ve yapay zekadan metin önerileri al.
-    </p>
+<section class="hero-panel">
+  <p class="hero-kicker">Launch sürümü</p>
+  <h1 class="page-title">Facebook ve Instagram içeriklerini tek panelden yönet.</h1>
+  <p class="page-desc">
+    MySocial Panel şu an hızlı yayın modunda. En stabil kapsam: bağlı Facebook sayfasına ve Instagram hesabına görselli veya metinli gönderi hazırlamak, kuyruğa almak ve arşivden takip etmek.
+  </p>
+  <div class="badges" style="margin-bottom:16px;">
+    <span class="badge ok">Facebook aktif</span>
+    <span class="badge ok">Instagram aktif</span>
+    <span class="badge warn">Launch scope: şimdi + tek sefer</span>
+  </div>
+  <div class="hero-actions">
+    <a class="btn primary-btn" href="{{ url_for('prepare') }}">Yeni Gönderi</a>
+    <a class="btn" href="{{ url_for('accounts') }}">Bağlantıları Kontrol Et</a>
+  </div>
+</section>
 
-    <div class="card">
-        <h3>Başlamak için</h3>
-        <p class="meta">
-            • <strong>Gönderi Oluştur</strong> → Yeni içerik hazırla, AI ile metin üret, medya ekle.<br>
-            • <strong>Zamanlanmış</strong> → Kaydedilmiş ve planlanmış gönderilerini gör.<br>
-            • <strong>Hazırlananlar</strong> → Taslak ekranı (ileride gelişecek).
-        </p>
+<div class="grid">
+  <div class="card">
+    <h3 style="margin-top:0;">Şu an ne hazır?</h3>
+    <div class="feature-list">
+      <p>Gerçek Facebook ve Instagram publish akışı mevcut.</p>
+      <p>Kuyruk, arşiv ve worker log ekranlarıyla gönderi takibi yapılabiliyor.</p>
+      <p>Production deploy için Render başlangıç dosyaları hazır.</p>
     </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Yayına çıkarken akış</h3>
+    <div class="feature-list">
+      <p><strong>1.</strong> Önce Hesaplar ekranında Meta bağlantısını doğrula.</p>
+      <p><strong>2.</strong> Sonra Gönderi Oluştur ekranından test postu at.</p>
+      <p><strong>3.</strong> Kuyruk ve Arşiv üzerinden sonuca bak.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Launch dışında bıraktıklarımız</h3>
+    <div class="feature-list">
+      <p>X, YouTube ve TikTok arayüzde launch scope dışı bırakıldı.</p>
+      <p>Aralıklı ve kampanya planlama bu sürümde kapalı tutuluyor.</p>
+      <p>Hedef sayfa/grup seçimi yerine varsayılan bağlı hesap kullanılıyor.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0;">Sonraki adım</h3>
+    <div class="feature-list">
+      <p>Production domain kur.</p>
+      <p>Meta redirect URI'yi production domaine taşı.</p>
+      <p>Son smoke testten sonra paneli düzenli kullanıma aç.</p>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

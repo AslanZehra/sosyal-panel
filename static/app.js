@@ -61,10 +61,9 @@
   }
 
   function setModeUI(mode) {
-    if (!oneShotWrap || !intervalWrap) return;
     const m = mode || "now";
-    oneShotWrap.style.display = m === "one_shot" ? "" : "none";
-    intervalWrap.style.display = m === "interval" ? "" : "none";
+    if (oneShotWrap) oneShotWrap.style.display = m === "one_shot" ? "" : "none";
+    if (intervalWrap) intervalWrap.style.display = m === "interval" ? "" : "none";
     if (campaignWrap) campaignWrap.style.display = m === "campaign" ? "" : "none";
   }
 

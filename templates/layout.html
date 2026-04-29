@@ -15,18 +15,29 @@
         <span class="brand-title" data-i18n="app_title">MySocial Panel</span>
       </div>
 
-      <nav class="nav">
-        <a href="{{ url_for('home') }}" class="{% if request.path == '/' %}active{% endif %}" data-i18n="nav_home">Ana Sayfa</a>
-        <a href="{{ url_for('prepare') }}" class="{% if request.path in ['/create','/prepare'] %}active{% endif %}" data-i18n="nav_create">Gönderi Oluştur</a>
-        <a href="{{ url_for('tasks') }}" class="{% if request.path == '/tasks' %}active{% endif %}" data-i18n="nav_scheduled">Zamanlanmış</a>
-        <a href="{{ url_for('queue_view') }}" class="{% if request.path == '/queue' %}active{% endif %}" data-i18n="nav_queue">Kuyruk</a>
-        <a href="{{ url_for('worker_logs_view') }}" class="{% if request.path == '/worker-logs' %}active{% endif %}" data-i18n="nav_worker_logs">Worker Log</a>
-        <a href="{{ url_for('archive_view') }}" class="{% if request.path == '/archive' %}active{% endif %}" data-i18n="nav_archive">Arşiv</a>
-        <a href="{{ url_for('drafts') }}" class="{% if request.path == '/drafts' %}active{% endif %}" data-i18n="nav_drafts">Taslaklar</a>
-        <a href="{{ url_for('accounts') }}" class="{% if request.path == '/accounts' %}active{% endif %}" data-i18n="nav_accounts">Hesaplar</a>
-      </nav>
+      {% if current_user %}
+        <nav class="nav">
+          <a href="{{ url_for('home') }}" class="{% if request.path == '/' %}active{% endif %}" data-i18n="nav_home">Ana Sayfa</a>
+          <a href="{{ url_for('prepare') }}" class="{% if request.path in ['/create','/prepare'] %}active{% endif %}" data-i18n="nav_create">Gönderi Oluştur</a>
+          <a href="{{ url_for('tasks') }}" class="{% if request.path == '/tasks' %}active{% endif %}" data-i18n="nav_scheduled">Zamanlanmış</a>
+          <a href="{{ url_for('queue_view') }}" class="{% if request.path == '/queue' %}active{% endif %}" data-i18n="nav_queue">Kuyruk</a>
+          <a href="{{ url_for('archive_view') }}" class="{% if request.path == '/archive' %}active{% endif %}" data-i18n="nav_archive">Arşiv</a>
+          <a href="{{ url_for('accounts') }}" class="{% if request.path == '/accounts' %}active{% endif %}" data-i18n="nav_accounts">Hesaplar</a>
+        </nav>
+      {% else %}
+        <nav class="nav">
+          <a href="{{ url_for('login') }}" class="{% if request.path == '/login' %}active{% endif %}">Giriş</a>
+          <a href="{{ url_for('register') }}" class="{% if request.path == '/register' %}active{% endif %}">Kayıt Ol</a>
+        </nav>
+      {% endif %}
 
       <div class="topbar-right">
+        {% if current_user %}
+          <span class="badge brand">{{ current_user.email }}</span>
+          <form method="post" action="{{ url_for('logout') }}" style="margin:0;">
+            <button type="submit" class="btn">Çıkış</button>
+          </form>
+        {% endif %}
         <select class="select" id="lang-select" aria-label="Language">
           <option value="tr">TR</option>
           <option value="en">EN</option>

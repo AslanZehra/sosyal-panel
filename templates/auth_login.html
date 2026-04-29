@@ -2,8 +2,8 @@
 {% block content %}
 
 <section class="form-card auth-shell">
-  <h1 class="page-title">Kayıt Ol</h1>
-  <p class="page-desc">Her kullanıcı kendi kuyruk, arşiv ve hesap bağlantılarıyla ayrı çalışır.</p>
+  <h1 class="page-title">Giriş Yap</h1>
+  <p class="page-desc">Panel artık kullanıcı oturumuyla çalışır. Giriş yaptıktan sonra sadece kendi verini görürsün.</p>
 
   {% if form_error %}
     <p class="small" style="margin:8px 0 12px 0;">
@@ -19,17 +19,12 @@
 
     <div class="form-row">
       <label class="form-label" for="password">Şifre</label>
-      <input id="password" name="password" type="password" class="input" minlength="6" required>
-    </div>
-
-    <div class="form-row">
-      <label class="form-label" for="password2">Şifre (tekrar)</label>
-      <input id="password2" name="password2" type="password" class="input" minlength="6" required>
+      <input id="password" name="password" type="password" class="input" required>
     </div>
 
     <div class="form-actions">
-      <a class="btn" href="{{ url_for('login') }}">Giriş Yap</a>
-      <button type="submit" class="btn primary-btn">Kayıt Ol</button>
+      <a class="btn" href="{{ url_for('register') }}">Kayıt Ol</a>
+      <button type="submit" class="btn primary-btn">Giriş Yap</button>
     </div>
   </form>
 </section>

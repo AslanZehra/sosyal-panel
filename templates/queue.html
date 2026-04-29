@@ -2,11 +2,34 @@
 {% block content %}
 
 <h1 class="page-title">Kuyruk</h1>
-<p class="page-desc">Worker'ın işlemeyi beklediği gönderiler.</p>
+<p class="page-desc">Worker'ın işlemeyi beklediği gönderiler. Launch sürümünde burada Facebook ve Instagram işlerini takip edersin.</p>
+
+<div class="form-actions" style="justify-content:flex-start; border-top:0; padding-top:0; margin-top:0; margin-bottom:12px;">
+  <a class="btn primary-btn" href="{{ url_for('prepare') }}">Yeni Gönderi</a>
+  <a class="btn" href="{{ url_for('tasks') }}">Planlananı Aç</a>
+  <a class="btn" href="{{ url_for('archive_view') }}">Arşivi Aç</a>
+  <a class="btn" href="{{ url_for('worker_logs_view') }}">Worker Log</a>
+</div>
+
+{% set msg = request.args.get('msg') %}
+{% set level = request.args.get('level', 'ok') %}
+{% if msg %}
+  <p class="small" style="margin:8px 0 14px 0;">
+    <span class="badge {% if level == 'ok' %}ok{% else %}warn{% endif %}">{{ msg }}</span>
+  </p>
+{% endif %}
 
 {% if not items %}
   <div class="card"><p class="card-meta">Kuyruk boş.</p></div>
 {% else %}
+  <div class="toolbar-row">
+    <p class="small" style="margin:0;">Toplam kart: <b>{{ items|length }}</b> | Hatalı kart: <b>{{ failed_count }}</b></p>
+    {% if failed_count > 0 %}
+      <form method="post" action="{{ url_for('queue_clear_failed') }}" class="inline-form" onsubmit="return confirm('needs_auth ve error durumundaki kartlar temizlensin mi?');">
+        <button type="submit" class="btn danger-btn">Hatalıları Temizle</button>
+      </form>
+    {% endif %}
+  </div>
   <div class="grid">
     {% for q in items %}
       <div class="card">
@@ -23,8 +46,9 @@
 
         <p class="small">Deneme: <b>{{ q.attempts or 0 }}</b></p>
         <p class="small">Son Hata: <b>{{ q.last_error or '-' }}</b></p>
-        <p class="small">Retry: <b>{{ q.retry_after or '-' }}</b></p>
-        <p class="small">Planlanan: <b>{{ q.scheduled_at or '-' }}</b></p>
+        <p class="small">Retry: <b title="{{ q.retry_after or '-' }}">{{ q.retry_after|local_dt }}</b></p>
+        <p class="small">Planlanan: <b title="{{ q.scheduled_at or '-' }}">{{ q.scheduled_at|local_dt }}</b></p>
+        <p class="small">Oluşturulma: <b title="{{ q.created_at or '-' }}">{{ q.created_at|local_dt }}</b></p>
         <p class="small">Format: <b>{{ q.format or 'normal' }}</b></p>
         <p class="small">Medya: <b>{{ (q.media or [])|length }}</b></p>
 
@@ -39,6 +63,12 @@
             {% endfor %}
           </div>
         {% endif %}
+
+        <div class="card-actions">
+          <form method="post" action="{{ url_for('queue_delete', item_id=q.id) }}" class="inline-form" onsubmit="return confirm('Bu kart kuyruktan silinsin mi?');">
+            <button type="submit" class="btn ghost-btn">Kartı Sil</button>
+          </form>
+        </div>
       </div>
     {% endfor %}
   </div>

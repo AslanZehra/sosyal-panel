@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, session
 from pathlib import Path
+from functools import wraps
 import json
 import os
+import shutil
+import sqlite3
 import uuid
 import datetime as dt
 import urllib.parse
 
 import requests
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from ai_routes import ai_bp
 
@@ -30,6 +34,8 @@ META_LOGIN_SCOPE = (
     ).strip()
     or "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
 )
+LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook")
+LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot"}
 
 # -----------------------------
 # Paths & storage
@@ -41,18 +47,31 @@ if APP_STORAGE_DIR:
 else:
     STORAGE_DIR = BASE_DIR
 
-DATA_DIR = STORAGE_DIR / "data"
-UPLOADS_DIR = STORAGE_DIR / "uploads"
-DATA_DIR.mkdir(exist_ok=True)
-UPLOADS_DIR.mkdir(exist_ok=True)
+ROOT_DATA_DIR = STORAGE_DIR / "data"
+ROOT_UPLOADS_DIR = STORAGE_DIR / "uploads"
+USERS_DATA_DIR = ROOT_DATA_DIR / "users"
+ROOT_DATA_DIR.mkdir(exist_ok=True)
+ROOT_UPLOADS_DIR.mkdir(exist_ok=True)
+USERS_DATA_DIR.mkdir(exist_ok=True)
 
-SCHEDULED_FILE = DATA_DIR / "scheduled_posts.json"
-DRAFTS_FILE = DATA_DIR / "draft_posts.json"
-QUEUE_FILE = DATA_DIR / "queue.json"
-ARCHIVE_FILE = DATA_DIR / "archive.json"
-ACCOUNTS_FILE = DATA_DIR / "accounts.json"
-META_PENDING_FILE = DATA_DIR / "meta_pending.json"
-WORKER_LOG_FILE = DATA_DIR / "worker.log"
+USER_DB_FILE = ROOT_DATA_DIR / "mysocial.db"
+META_PENDING_FILE = ROOT_DATA_DIR / "meta_pending.json"
+
+LEGACY_SCHEDULED_FILE = ROOT_DATA_DIR / "scheduled_posts.json"
+LEGACY_DRAFTS_FILE = ROOT_DATA_DIR / "draft_posts.json"
+LEGACY_QUEUE_FILE = ROOT_DATA_DIR / "queue.json"
+LEGACY_ARCHIVE_FILE = ROOT_DATA_DIR / "archive.json"
+LEGACY_ACCOUNTS_FILE = ROOT_DATA_DIR / "accounts.json"
+LEGACY_WORKER_LOG_FILE = ROOT_DATA_DIR / "worker.log"
+
+USER_FILE_NAMES = {
+    "scheduled": "scheduled_posts.json",
+    "drafts": "draft_posts.json",
+    "queue": "queue.json",
+    "archive": "archive.json",
+    "accounts": "accounts.json",
+    "worker_log": "worker.log",
+}
 
 # -----------------------------
 # Helpers
@@ -85,6 +104,13 @@ def _iso(d: dt.datetime | None) -> str:
     if not d:
         return ""
     return d.replace(microsecond=0).isoformat()
+
+
+def _format_local_dt(value: str) -> str:
+    parsed = _parse_dt_local(value)
+    if not parsed:
+        return (value or "").strip() or "-"
+    return parsed.strftime("%d.%m.%Y %H:%M")
 
 
 def load_json(path: Path, default):
@@ -148,8 +174,177 @@ def default_accounts() -> dict:
     }
 
 
-def load_accounts() -> dict:
-    raw = load_json(ACCOUNTS_FILE, {})
+def get_db_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(USER_DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_user_db() -> None:
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
+
+def get_user_by_email(email: str):
+    with get_db_connection() as conn:
+        return conn.execute("SELECT id, email, password_hash, created_at FROM users WHERE email = ?", ((email or "").strip().lower(),)).fetchone()
+
+
+def get_user_by_id(user_id: int):
+    with get_db_connection() as conn:
+        return conn.execute("SELECT id, email, password_hash, created_at FROM users WHERE id = ?", (int(user_id),)).fetchone()
+
+
+def create_user(email: str, password: str) -> int:
+    stamp = _iso(_now())
+    with get_db_connection() as conn:
+        cur = conn.execute(
+            "INSERT INTO users(email, password_hash, created_at) VALUES(?,?,?)",
+            ((email or "").strip().lower(), generate_password_hash(password), stamp),
+        )
+        conn.commit()
+        return int(cur.lastrowid)
+
+
+def current_user_id() -> int | None:
+    raw = session.get("user_id")
+    try:
+        return int(raw) if raw else None
+    except Exception:
+        return None
+
+
+def current_user_email() -> str:
+    return (session.get("user_email") or "").strip()
+
+
+def user_data_dir(user_id: int | None = None) -> Path:
+    uid = int(user_id or current_user_id() or 0)
+    if uid < 1:
+        raise RuntimeError("Geçerli kullanıcı bulunamadı.")
+    path = USERS_DATA_DIR / str(uid)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def user_uploads_dir(user_id: int | None = None) -> Path:
+    uid = int(user_id or current_user_id() or 0)
+    if uid < 1:
+        raise RuntimeError("Geçerli kullanıcı bulunamadı.")
+    path = ROOT_UPLOADS_DIR / str(uid)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def user_file(key: str, user_id: int | None = None) -> Path:
+    filename = USER_FILE_NAMES[key]
+    return user_data_dir(user_id) / filename
+
+
+def user_has_meaningful_data(user_id: int) -> bool:
+    if load_json(user_file("queue", user_id), []):
+        return True
+    if load_json(user_file("archive", user_id), []):
+        return True
+    if load_json(user_file("scheduled", user_id), []):
+        return True
+    if load_json(user_file("drafts", user_id), []):
+        return True
+    return load_accounts(user_id) != default_accounts()
+
+
+def ensure_user_files(user_id: int | None = None) -> None:
+    uid = int(user_id or current_user_id() or 0)
+    if uid < 1:
+        return
+    if not user_file("scheduled", uid).exists():
+        save_json(user_file("scheduled", uid), [])
+    if not user_file("drafts", uid).exists():
+        save_json(user_file("drafts", uid), [])
+    if not user_file("queue", uid).exists():
+        save_json(user_file("queue", uid), [])
+    if not user_file("archive", uid).exists():
+        save_json(user_file("archive", uid), [])
+    if not user_file("accounts", uid).exists():
+        save_json(user_file("accounts", uid), default_accounts())
+    if not user_file("worker_log", uid).exists():
+        user_file("worker_log", uid).write_text("", encoding="utf-8")
+    user_uploads_dir(uid)
+
+
+def migrate_legacy_data_if_needed(user_id: int) -> int:
+    ensure_user_files(user_id)
+    if user_has_meaningful_data(user_id):
+        return 0
+
+    other_user_dirs = [p for p in USERS_DATA_DIR.iterdir() if p.is_dir() and p.name != str(user_id)]
+    if other_user_dirs:
+        return 0
+
+    migrated = 0
+    legacy_map = {
+        "scheduled": LEGACY_SCHEDULED_FILE,
+        "drafts": LEGACY_DRAFTS_FILE,
+        "queue": LEGACY_QUEUE_FILE,
+        "archive": LEGACY_ARCHIVE_FILE,
+        "accounts": LEGACY_ACCOUNTS_FILE,
+        "worker_log": LEGACY_WORKER_LOG_FILE,
+    }
+    for key, source in legacy_map.items():
+        if not source.exists():
+            continue
+        target = user_file(key, user_id)
+        if source.resolve() == target.resolve():
+            continue
+        try:
+            shutil.copy2(source, target)
+            migrated += 1
+        except Exception:
+            continue
+    return migrated
+
+
+def login_user_session(user_row) -> None:
+    session["user_id"] = int(user_row["id"])
+    session["user_email"] = (user_row["email"] or "").strip().lower()
+    ensure_user_files(int(user_row["id"]))
+
+
+def logout_user_session() -> None:
+    session.pop("user_id", None)
+    session.pop("user_email", None)
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not current_user_id():
+            return redirect(url_for("login"))
+        ensure_user_files()
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def load_queue_items(user_id: int | None = None) -> list[dict]:
+    items = load_json(user_file("queue", user_id), [])
+    if not isinstance(items, list):
+        return []
+    return items
+
+
+def load_accounts(user_id: int | None = None) -> dict:
+    ensure_user_files(user_id)
+    raw = load_json(user_file("accounts", user_id), {})
     defaults = default_accounts()
     if not isinstance(raw, dict):
         return defaults
@@ -163,7 +358,7 @@ def load_accounts() -> dict:
     return merged
 
 
-def save_accounts(data: dict) -> None:
+def save_accounts(data: dict, user_id: int | None = None) -> None:
     defaults = default_accounts()
     out = {}
     for platform, cfg in defaults.items():
@@ -171,20 +366,31 @@ def save_accounts(data: dict) -> None:
         if not isinstance(existing, dict):
             existing = {}
         out[platform] = {**cfg, **existing}
-    save_json(ACCOUNTS_FILE, out)
+    save_json(user_file("accounts", user_id), out)
+
+
+def has_saved_platform_auth(accounts: dict, platform: str) -> bool:
+    cfg = accounts.get(platform) or {}
+    if not cfg.get("enabled"):
+        return False
+    if cfg.get("status") != "connected":
+        return False
+
+    if platform == "facebook":
+        return bool(cfg.get("page_id") and cfg.get("page_access_token"))
+
+    if platform == "instagram":
+        token = (cfg.get("access_token") or "").strip() or (accounts.get("facebook", {}).get("page_access_token") or "").strip()
+        return bool(cfg.get("ig_business_id") and token)
+
+    return bool((cfg.get("access_token") or "").strip())
 
 
 def ensure_files():
-    if not SCHEDULED_FILE.exists():
-        save_json(SCHEDULED_FILE, [])
-    if not DRAFTS_FILE.exists():
-        save_json(DRAFTS_FILE, [])
-    if not QUEUE_FILE.exists():
-        save_json(QUEUE_FILE, [])
-    if not ARCHIVE_FILE.exists():
-        save_json(ARCHIVE_FILE, [])
-    if not ACCOUNTS_FILE.exists():
-        save_json(ACCOUNTS_FILE, default_accounts())
+    ROOT_DATA_DIR.mkdir(exist_ok=True)
+    ROOT_UPLOADS_DIR.mkdir(exist_ok=True)
+    USERS_DATA_DIR.mkdir(exist_ok=True)
+    init_user_db()
     if not META_PENDING_FILE.exists():
         save_json(META_PENDING_FILE, {})
 
@@ -198,19 +404,23 @@ def infer_media_kind(filename: str) -> str:
     return "file"
 
 
-def save_uploads(files) -> list[dict]:
+def save_uploads(files, user_id: int | None = None) -> list[dict]:
+    uid = int(user_id or current_user_id() or 0)
+    if uid < 1:
+        return []
     out = []
+    uploads_dir = user_uploads_dir(uid)
     for f in files:
         if not f or not getattr(f, "filename", ""):
             continue
         original = Path(f.filename).name
         ext = Path(original).suffix.lower()
         safe_name = f"{uuid.uuid4().hex}{ext}"
-        abs_path = UPLOADS_DIR / safe_name
+        abs_path = uploads_dir / safe_name
         f.save(abs_path)
         out.append({
             "kind": infer_media_kind(original),
-            "path": f"uploads/{safe_name}",
+            "path": f"uploads/{uid}/{safe_name}",
             "name": original,
         })
     return out
@@ -266,15 +476,12 @@ def validate_post_payload(text: str, hashtags: str, platforms: list[str], fmt: s
         errors.append("En az bir platform seçmelisin.")
         return errors
 
-    not_ready = [p for p in selected if p in ("youtube", "tiktok")]
-    if not_ready:
-        errors.append("Bu platformlar için gerçek yayın henüz aktif değil: " + ", ".join(sorted(set(not_ready))))
+    launch_blocked = [p for p in selected if p not in LAUNCH_ENABLED_PLATFORMS]
+    if launch_blocked:
+        errors.append("Hızlı yayında şu an sadece Facebook ve Instagram açık.")
 
     if "instagram" in selected_set and not media:
         errors.append("Instagram için en az 1 foto/video seçmelisin.")
-
-    if "x" in selected_set and media:
-        errors.append("X için şu an sadece metin gönderimi destekleniyor. Medya kaldır.")
 
     if fmt == "story":
         if len(media) != 1:
@@ -372,6 +579,38 @@ def get_token_debug_data(user_token: str) -> dict:
     return {}
 
 
+def exchange_for_long_lived_meta_token(user_access_token: str) -> tuple[str, str]:
+    token = (user_access_token or "").strip()
+    if not token:
+        return "", "Meta user access token boş."
+    if not META_APP_ID or not META_APP_SECRET:
+        return token, ""
+
+    try:
+        res = requests.get(
+            _meta_graph_url("/oauth/access_token"),
+            params={
+                "grant_type": "fb_exchange_token",
+                "client_id": META_APP_ID,
+                "client_secret": META_APP_SECRET,
+                "fb_exchange_token": token,
+            },
+            timeout=25,
+        )
+        payload = res.json() if res.text else {}
+    except Exception as exc:
+        return token, str(exc)
+
+    if res.status_code >= 400:
+        err = payload.get("error", {}).get("message") if isinstance(payload, dict) else ""
+        return token, err or res.text or "long_lived_token_exchange_failed"
+
+    long_lived = (payload.get("access_token") or "").strip() if isinstance(payload, dict) else ""
+    if not long_lived:
+        return token, "Long-lived token dönmedi."
+    return long_lived, ""
+
+
 def discover_pages_from_debug_targets(user_access_token: str) -> list[dict]:
     data = get_token_debug_data(user_access_token)
     granular = data.get("granular_scopes") or []
@@ -419,8 +658,43 @@ def discover_pages_from_debug_targets(user_access_token: str) -> list[dict]:
     return pages
 
 
-def save_meta_page_selection(page: dict, user_access_token: str) -> dict:
-    accounts = load_accounts()
+def reactivate_scheduled_jobs_after_auth(accounts: dict, user_id: int | None = None) -> int:
+    scheduled = load_json(user_file("scheduled", user_id), [])
+    if not isinstance(scheduled, list):
+        return 0
+
+    updated_at = _iso(_now())
+    changed = 0
+    for job in scheduled:
+        status = (job.get("status") or "").strip().lower()
+        if status not in {"needs_auth", "paused_auth"}:
+            continue
+
+        platforms = [str(p).strip().lower() for p in (job.get("platforms") or []) if str(p).strip()]
+        if not platforms:
+            continue
+        if not all(has_saved_platform_auth(accounts, platform) for platform in platforms):
+            continue
+
+        jtype = (job.get("type") or "").strip().lower()
+        if jtype == "one_shot":
+            job["status"] = "scheduled"
+        elif jtype in {"interval", "interval_range", "recurring"}:
+            job["status"] = "active"
+        else:
+            continue
+
+        job["last_error"] = ""
+        job["updated_at"] = updated_at
+        changed += 1
+
+    if changed:
+        save_json(user_file("scheduled", user_id), scheduled)
+    return changed
+
+
+def save_meta_page_selection(page: dict, user_access_token: str, user_id: int | None = None) -> dict:
+    accounts = load_accounts(user_id)
     fb = accounts.get("facebook", {})
     fb.update({
         "enabled": True,
@@ -447,15 +721,17 @@ def save_meta_page_selection(page: dict, user_access_token: str) -> dict:
         })
         accounts["instagram"] = insta
 
-    save_accounts(accounts)
+    save_accounts(accounts, user_id)
+    reactivated_jobs = reactivate_scheduled_jobs_after_auth(accounts, user_id)
     return {
         "page_id": fb.get("page_id"),
         "account_name": fb.get("account_name"),
         "connected_at": fb.get("updated_at"),
+        "reactivated_jobs": reactivated_jobs,
     }
 
 
-def refresh_instagram_from_page(accounts: dict) -> tuple[bool, str]:
+def refresh_instagram_from_page(accounts: dict, user_id: int | None = None) -> tuple[bool, str]:
     fb = accounts.get("facebook", {})
     page_id = (fb.get("page_id") or "").strip()
     page_token = (fb.get("page_access_token") or "").strip()
@@ -496,7 +772,7 @@ def refresh_instagram_from_page(accounts: dict) -> tuple[bool, str]:
             "note": "Bu Facebook sayfasına bağlı Instagram Business hesabı bulunamadı.",
         })
         accounts["instagram"] = insta
-        save_accounts(accounts)
+        save_accounts(accounts, user_id)
         return False, "Bu Facebook sayfasına bağlı Instagram Business hesabı bulunamadı."
 
     insta = accounts.get("instagram", {})
@@ -513,7 +789,7 @@ def refresh_instagram_from_page(accounts: dict) -> tuple[bool, str]:
         "note": "Facebook Page üzerinden yenilendi.",
     })
     accounts["instagram"] = insta
-    save_accounts(accounts)
+    save_accounts(accounts, user_id)
     return True, f"Instagram bağlandı: {insta.get('account_name') or insta.get('ig_business_id')}"
 
 
@@ -522,13 +798,104 @@ def refresh_instagram_from_page(accounts: dict) -> tuple[bool, str]:
 # -----------------------------
 ensure_files()
 app = Flask(__name__)
+app.secret_key = (os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY") or "dev-secret-change-me").strip()
 app.register_blueprint(ai_bp)
+app.jinja_env.filters["local_dt"] = _format_local_dt
+
+
+@app.context_processor
+def inject_current_user():
+    uid = current_user_id()
+    if not uid:
+        return {"current_user": None}
+    return {
+        "current_user": {
+            "id": uid,
+            "email": current_user_email(),
+        }
+    }
+
+
+@app.before_request
+def enforce_login_for_app():
+    endpoint = (request.endpoint or "").strip()
+    if not endpoint:
+        return None
+    if endpoint == "static" or request.path.startswith("/static/"):
+        return None
+    if endpoint in {"login", "register", "uploaded_file", "meta_callback", "meta_select_page"}:
+        return None
+    if current_user_id():
+        ensure_user_files()
+        return None
+    return redirect(url_for("login"))
+
+
+# -----------------------------
+# AUTH
+# -----------------------------
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if current_user_id():
+        return redirect(url_for("home"))
+
+    form_error = ""
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+        password2 = request.form.get("password2") or ""
+
+        if not email:
+            form_error = "E-posta zorunlu."
+        elif len(password) < 6:
+            form_error = "Şifre en az 6 karakter olmalı."
+        elif password != password2:
+            form_error = "Şifreler eşleşmiyor."
+        elif get_user_by_email(email):
+            form_error = "Bu e-posta ile kayıtlı hesap var."
+        else:
+            user_id = create_user(email, password)
+            user = get_user_by_id(user_id)
+            login_user_session(user)
+            migrate_legacy_data_if_needed(user_id)
+            return redirect(url_for("home"))
+
+    return render_template("auth_register.html", form_error=form_error)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user_id():
+        return redirect(url_for("home"))
+
+    form_error = ""
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+        user = get_user_by_email(email)
+
+        if not user or not check_password_hash(user["password_hash"], password):
+            form_error = "E-posta veya şifre hatalı."
+        else:
+            login_user_session(user)
+            migrate_legacy_data_if_needed(int(user["id"]))
+            return redirect(url_for("home"))
+
+    return render_template("auth_login.html", form_error=form_error)
+
+
+@app.post("/logout")
+@login_required
+def logout():
+    logout_user_session()
+    return redirect(url_for("login"))
 
 
 # -----------------------------
 # HOME
 # -----------------------------
 @app.route("/")
+@login_required
 def home():
     return render_template("index.html")
 
@@ -537,6 +904,7 @@ def home():
 # ACCOUNTS
 # -----------------------------
 @app.route("/accounts", methods=["GET", "POST"])
+@login_required
 def accounts():
     data = load_accounts()
 
@@ -578,18 +946,27 @@ def accounts():
         save_accounts(data)
         return redirect(url_for("accounts"))
 
-    return render_template("accounts.html", accounts=data)
+    parsed_redirect = urllib.parse.urlparse(META_REDIRECT_URI) if META_REDIRECT_URI else None
+    meta_app_domain = parsed_redirect.netloc if parsed_redirect else ""
+    return render_template(
+        "accounts.html",
+        accounts=data,
+        meta_redirect_uri=META_REDIRECT_URI,
+        meta_app_domain=meta_app_domain,
+    )
 
 
 @app.route("/auth/meta/refresh-instagram")
+@login_required
 def meta_refresh_instagram():
     accounts_data = load_accounts()
-    ok, message = refresh_instagram_from_page(accounts_data)
+    ok, message = refresh_instagram_from_page(accounts_data, current_user_id())
     level = "ok" if ok else "warn"
     return redirect(url_for("accounts", msg=message, level=level))
 
 
 @app.route("/auth/x/test")
+@login_required
 def x_test_token_route():
     accounts_data = load_accounts()
     xcfg = accounts_data.get("x", {})
@@ -619,6 +996,7 @@ def x_test_token_route():
 # META LOGIN
 # -----------------------------
 @app.route("/auth/meta/start")
+@login_required
 def meta_start():
     if not META_APP_ID or not META_APP_SECRET or not META_REDIRECT_URI:
         return "Meta ENV eksik: META_APP_ID / META_APP_SECRET / META_REDIRECT_URI gerekli", 500
@@ -627,7 +1005,7 @@ def meta_start():
     pending = load_json(META_PENDING_FILE, {})
     if not isinstance(pending, dict):
         pending = {}
-    pending[state] = {"created_at": _iso(_now())}
+    pending[state] = {"created_at": _iso(_now()), "user_id": current_user_id()}
     save_json(META_PENDING_FILE, pending)
 
     params = {
@@ -660,6 +1038,11 @@ def meta_callback():
     if state and state not in pending:
         return "Meta state hatasi. /auth/meta/start ile akışı tekrar başlat.", 400
 
+    pending_state = pending.get(state) or {}
+    target_user_id = int(pending_state.get("user_id") or current_user_id() or 0)
+    if target_user_id < 1:
+        return redirect(url_for("login"))
+
     token_url = "https://graph.facebook.com/" + META_GRAPH_VERSION + "/oauth/access_token"
     params = {
         "client_id": META_APP_ID,
@@ -675,7 +1058,7 @@ def meta_callback():
     except Exception as exc:
         return f"Meta token alma hatasi: {exc}", 400
 
-    user_access_token = token_payload.get("access_token")
+    user_access_token = (token_payload.get("access_token") or "").strip()
     if not user_access_token:
         return redirect(
             url_for(
@@ -685,11 +1068,14 @@ def meta_callback():
             )
         )
 
+    long_lived_user_token, exchange_err = exchange_for_long_lived_meta_token(user_access_token)
+    active_user_token = long_lived_user_token or user_access_token
+
     try:
         pages_res = requests.get(
             _meta_graph_url("/me/accounts"),
             params={
-                "access_token": user_access_token,
+                "access_token": active_user_token,
                 "fields": "id,name,access_token,instagram_business_account{id,username}",
             },
             timeout=25,
@@ -701,7 +1087,7 @@ def meta_callback():
 
     pages = pages_payload.get("data") or []
     if not pages:
-        pages = discover_pages_from_debug_targets(user_access_token)
+        pages = discover_pages_from_debug_targets(active_user_token)
     if not pages:
         return redirect(
             url_for(
@@ -712,18 +1098,26 @@ def meta_callback():
         )
 
     if len(pages) == 1:
-        save_meta_page_selection(pages[0], user_access_token)
+        selection = save_meta_page_selection(pages[0], active_user_token, target_user_id)
         if state:
             pending.pop(state, None)
             save_json(META_PENDING_FILE, pending)
-        return redirect(url_for("accounts"))
+        msg = "Meta bağlantısı yenilendi."
+        if selection.get("reactivated_jobs"):
+            msg += f" {selection.get('reactivated_jobs')} zamanlanmış iş tekrar aktif edildi."
+        level = "ok"
+        if exchange_err:
+            msg += f" Long-lived token exchange uyarısı: {exchange_err}"
+            level = "warn"
+        return redirect(url_for("accounts", msg=msg, level=level))
 
     if not state:
         state = uuid.uuid4().hex
 
     pending[state] = {
         "created_at": _iso(_now()),
-        "user_access_token": user_access_token,
+        "user_id": target_user_id,
+        "user_access_token": active_user_token,
         "pages": pages,
     }
     save_json(META_PENDING_FILE, pending)
@@ -749,10 +1143,17 @@ def meta_select_page():
     if not selected:
         return "Seçilen Page bulunamadı.", 400
 
-    save_meta_page_selection(selected, payload.get("user_access_token", ""))
+    target_user_id = int(payload.get("user_id") or current_user_id() or 0)
+    if target_user_id < 1:
+        return redirect(url_for("login"))
+
+    selection = save_meta_page_selection(selected, payload.get("user_access_token", ""), target_user_id)
     pending.pop(state, None)
     save_json(META_PENDING_FILE, pending)
-    return redirect(url_for("accounts"))
+    msg = "Meta sayfası bağlandı."
+    if selection.get("reactivated_jobs"):
+        msg += f" {selection.get('reactivated_jobs')} zamanlanmış iş tekrar aktif edildi."
+    return redirect(url_for("accounts", msg=msg, level="ok"))
 
 
 # -----------------------------
@@ -760,6 +1161,7 @@ def meta_select_page():
 # -----------------------------
 @app.route("/prepare", methods=["GET", "POST"])
 @app.route("/create", methods=["GET", "POST"])
+@login_required
 def prepare():
     form_data = request.form if request.method == "POST" else {}
     if request.method == "POST":
@@ -773,8 +1175,15 @@ def prepare():
         media_mode = (request.form.get("media_mode") or "mixed").strip()
         targets_raw = (request.form.get("targets") or "").strip()
 
+        if schedule_mode not in LAUNCH_ENABLED_SCHEDULE_MODES:
+            return render_template(
+                "prepare.html",
+                form_error="Hızlı yayında şu an sadece 'Şimdi Gönder' ve 'Tek Sefer' açık.",
+                form_data=form_data,
+            ), 400
+
         media_files = request.files.getlist("media")
-        media = filter_media_by_mode(save_uploads(media_files), media_mode)
+        media = filter_media_by_mode(save_uploads(media_files, current_user_id()), media_mode)
 
         base = {
             "id": uuid.uuid4().hex,
@@ -799,13 +1208,13 @@ def prepare():
             ), 400
 
         if action == "draft":
-            drafts = load_json(DRAFTS_FILE, [])
+            drafts = load_json(user_file("drafts"), [])
             drafts.append({**base, "status": "draft", "schedule_mode": schedule_mode})
-            save_json(DRAFTS_FILE, drafts)
+            save_json(user_file("drafts"), drafts)
             return redirect(url_for("drafts"))
 
         if schedule_mode == "now":
-            queue = load_json(QUEUE_FILE, [])
+            queue = load_json(user_file("queue"), [])
             queue_item = {
                 **base,
                 "status": "queued",
@@ -816,7 +1225,7 @@ def prepare():
                 "delivered_platforms": [],
             }
             queue.append(queue_item)
-            save_json(QUEUE_FILE, queue)
+            save_json(user_file("queue"), queue)
             return redirect(url_for("tasks"))
 
         if schedule_mode == "interval":
@@ -837,9 +1246,9 @@ def prepare():
                 "start_at": _iso(start_at),
                 "next_run_at": _iso(start_at),
             }
-            scheduled = load_json(SCHEDULED_FILE, [])
+            scheduled = load_json(user_file("scheduled"), [])
             scheduled.append(obj)
-            save_json(SCHEDULED_FILE, scheduled)
+            save_json(user_file("scheduled"), scheduled)
             return redirect(url_for("tasks"))
 
         if schedule_mode == "campaign":
@@ -869,9 +1278,9 @@ def prepare():
                 "per_day_count": per_day_count,
                 "interval_min": interval_min,
             }
-            scheduled = load_json(SCHEDULED_FILE, [])
+            scheduled = load_json(user_file("scheduled"), [])
             scheduled.append(obj)
-            save_json(SCHEDULED_FILE, scheduled)
+            save_json(user_file("scheduled"), scheduled)
             return redirect(url_for("tasks"))
 
         # default: one_shot
@@ -882,9 +1291,9 @@ def prepare():
             "schedule_at": _iso(schedule_at),
             "status": "scheduled",
         }
-        scheduled = load_json(SCHEDULED_FILE, [])
+        scheduled = load_json(user_file("scheduled"), [])
         scheduled.append(obj)
-        save_json(SCHEDULED_FILE, scheduled)
+        save_json(user_file("scheduled"), scheduled)
         return redirect(url_for("tasks"))
 
     return render_template("prepare.html", form_data=form_data)
@@ -894,41 +1303,75 @@ def prepare():
 # LIST PAGES
 # -----------------------------
 @app.route("/tasks")
+@login_required
 def tasks():
-    posts = load_json(SCHEDULED_FILE, [])
-    queue = load_json(QUEUE_FILE, [])
-    archive = load_json(ARCHIVE_FILE, [])
+    posts = load_json(user_file("scheduled"), [])
+    queue = load_json(user_file("queue"), [])
+    archive = load_json(user_file("archive"), [])
+    launch_posts = [post for post in posts if (post.get("type") or "").strip().lower() == "one_shot"]
+    launch_posts.sort(key=lambda post: post.get("schedule_at") or post.get("created_at") or "")
     return render_template(
         "tasks.html",
-        posts=posts,
+        posts=launch_posts,
         queue_count=len(queue),
         archive_count=len(archive),
+        hidden_count=len(posts) - len(launch_posts),
     )
 
 
 @app.route("/drafts")
+@login_required
 def drafts():
-    posts = load_json(DRAFTS_FILE, [])
+    posts = load_json(user_file("drafts"), [])
     return render_template("drafts.html", posts=posts)
 
 
 @app.route("/queue")
+@login_required
 def queue_view():
-    items = load_json(QUEUE_FILE, [])
-    return render_template("queue.html", items=items)
+    items = load_queue_items()
+    failed_count = sum(1 for item in items if (item.get("status") or "").strip().lower() in {"needs_auth", "error"})
+    return render_template("queue.html", items=items, failed_count=failed_count)
+
+
+@app.post("/queue/clear-failed")
+@login_required
+def queue_clear_failed():
+    items = load_queue_items()
+    kept = [item for item in items if (item.get("status") or "").strip().lower() not in {"needs_auth", "error"}]
+    removed = len(items) - len(kept)
+    if removed:
+        save_json(user_file("queue"), kept)
+        return redirect(url_for("queue_view", msg=f"{removed} hatalı kart temizlendi.", level="ok"))
+    return redirect(url_for("queue_view", msg="Temizlenecek needs_auth/error kartı yok.", level="warn"))
+
+
+@app.post("/queue/<item_id>/delete")
+@login_required
+def queue_delete(item_id: str):
+    items = load_queue_items()
+    kept = [item for item in items if (item.get("id") or "").strip() != item_id]
+    removed = len(items) - len(kept)
+    if removed:
+        save_json(user_file("queue"), kept)
+        return redirect(url_for("queue_view", msg="Kart kuyruktan silindi.", level="ok"))
+    return redirect(url_for("queue_view", msg="Silinecek kart bulunamadı.", level="warn"))
 
 
 @app.route("/archive")
+@login_required
 def archive_view():
-    items = list(reversed(load_json(ARCHIVE_FILE, [])))
+    items = list(reversed(load_json(user_file("archive"), [])))
     return render_template("archive.html", items=items)
 
 
 @app.route("/worker-logs")
+@login_required
 def worker_logs_view():
     rows = []
-    if WORKER_LOG_FILE.exists():
-        lines = WORKER_LOG_FILE.read_text(encoding="utf-8").splitlines()[-300:]
+    worker_log_file = user_file("worker_log")
+    if worker_log_file.exists():
+        lines = worker_log_file.read_text(encoding="utf-8").splitlines()[-300:]
         for line in reversed(lines):
             line = (line or "").strip()
             if not line:
@@ -945,20 +1388,22 @@ def worker_logs_view():
 # -----------------------------
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename: str):
-    return send_from_directory(UPLOADS_DIR, filename)
+    return send_from_directory(ROOT_UPLOADS_DIR, filename)
 
 
 # -----------------------------
 # DEBUG
 # -----------------------------
 @app.get("/api/debug/queue")
+@login_required
 def debug_queue():
-    return jsonify(load_json(QUEUE_FILE, []))
+    return jsonify(load_json(user_file("queue"), []))
 
 
 @app.get("/api/debug/archive")
+@login_required
 def debug_archive():
-    return jsonify(load_json(ARCHIVE_FILE, []))
+    return jsonify(load_json(user_file("archive"), []))
 
 
 # -----------------------------
