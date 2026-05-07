@@ -47,7 +47,7 @@ META_LOGIN_SCOPE = (
     or "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
 )
 LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook")
-LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot"}
+LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot", "interval", "campaign"}
 
 # -----------------------------
 # Paths & storage
@@ -1512,7 +1512,7 @@ def prepare():
         if schedule_mode not in LAUNCH_ENABLED_SCHEDULE_MODES:
             return render_template(
                 "prepare.html",
-                form_error="Hızlı yayında şu an sadece 'Şimdi Gönder' ve 'Tek Sefer' açık.",
+                form_error="Geçersiz gönderim modu seçildi.",
                 form_data=form_data,
             ), 400
 
@@ -1642,14 +1642,20 @@ def tasks():
     posts = load_json(user_file("scheduled"), [])
     queue = load_json(user_file("queue"), [])
     archive = load_json(user_file("archive"), [])
-    launch_posts = [post for post in posts if (post.get("type") or "").strip().lower() == "one_shot"]
-    launch_posts.sort(key=lambda post: post.get("schedule_at") or post.get("created_at") or "")
+    posts.sort(
+        key=lambda post: (
+            post.get("schedule_at")
+            or post.get("next_run_at")
+            or post.get("start_at")
+            or post.get("created_at")
+            or ""
+        )
+    )
     return render_template(
         "tasks.html",
-        posts=launch_posts,
+        posts=posts,
         queue_count=len(queue),
         archive_count=len(archive),
-        hidden_count=len(posts) - len(launch_posts),
     )
 
 

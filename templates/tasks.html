@@ -3,7 +3,7 @@
 
 <h1 class="page-title">Planlanan</h1>
 <p class="page-desc">
-  Launch sürümünde burada sadece tek seferlik planlı gönderileri görürsün. Kuyruk: <b>{{ queue_count }}</b> | Arşiv: <b>{{ archive_count }}</b>
+  Tüm planlı gönderilerini burada görürsün. Kuyruk: <b>{{ queue_count }}</b> | Arşiv: <b>{{ archive_count }}</b>
 </p>
 
 <div class="form-actions" style="justify-content:flex-start; border-top:0; padding-top:0; margin-top:0; margin-bottom:12px;">
@@ -12,24 +12,29 @@
   <a class="btn" href="{{ url_for('archive_view') }}">Arşivi Aç</a>
 </div>
 
-{% if hidden_count > 0 %}
-  <p class="small" style="margin:0 0 14px 0;">
-    <span class="badge warn">{{ hidden_count }} eski aralıklı/kampanya planı launch görünümünden gizlendi.</span>
-  </p>
-{% endif %}
-
 {% if not posts or posts|length == 0 %}
   <div class="card">
-    <p class="card-meta">Henüz tek sefer planlı gönderi yok.</p>
+    <p class="card-meta">Henüz planlı gönderi yok.</p>
   </div>
 {% else %}
   <div class="grid">
     {% for p in posts %}
       {% set st = (p.status or '') %}
+      {% set jtype = (p.type or '') %}
       <div class="card">
         <div class="card-title">
           <div>
-            <h3>Tek Sefer</h3>
+            <h3>
+              {% if jtype == 'one_shot' %}
+                Tek Sefer
+              {% elif jtype == 'interval' %}
+                Aralıklı
+              {% elif jtype == 'interval_range' %}
+                Kampanya
+              {% else %}
+                {{ jtype or 'Planlı' }}
+              {% endif %}
+            </h3>
             <p class="card-meta">Oluşturma: {{ p.created_at|local_dt if p.created_at else '-' }}</p>
           </div>
           <div class="badges">
@@ -47,7 +52,18 @@
           {% endif %}
         </div>
 
-        <p class="small">Zaman: <b title="{{ p.schedule_at or '-' }}">{{ p.schedule_at|local_dt if p.schedule_at else '-' }}</b></p>
+        {% if jtype == 'one_shot' %}
+          <p class="small">Zaman: <b title="{{ p.schedule_at or '-' }}">{{ p.schedule_at|local_dt if p.schedule_at else '-' }}</b></p>
+        {% elif jtype == 'interval' %}
+          <p class="small">Başlangıç: <b title="{{ p.start_at or '-' }}">{{ p.start_at|local_dt if p.start_at else '-' }}</b></p>
+          <p class="small">Aralık: <b>{{ p.interval_min or '-' }} dk</b></p>
+          <p class="small">Sonraki Çalışma: <b title="{{ p.next_run_at or '-' }}">{{ p.next_run_at|local_dt if p.next_run_at else '-' }}</b></p>
+        {% elif jtype == 'interval_range' %}
+          <p class="small">Başlangıç: <b title="{{ p.start_at or '-' }}">{{ p.start_at|local_dt if p.start_at else '-' }}</b></p>
+          <p class="small">Bitiş: <b title="{{ p.end_at or '-' }}">{{ p.end_at|local_dt if p.end_at else '-' }}</b></p>
+          <p class="small">Günlük Adet: <b>{{ p.per_day_count or '-' }}</b></p>
+          <p class="small">Sonraki Çalışma: <b title="{{ p.next_run_at or '-' }}">{{ p.next_run_at|local_dt if p.next_run_at else '-' }}</b></p>
+        {% endif %}
 
         <div class="preview-text">{{ (p.text or '')[:220] }}{% if (p.text or '')|length > 220 %}…{% endif %}</div>
       </div>

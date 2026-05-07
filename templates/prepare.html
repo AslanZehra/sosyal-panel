@@ -3,12 +3,8 @@
 
 <form class="form-card" method="POST" enctype="multipart/form-data">
   <h1 class="page-title" data-i18n="page_prepare_title">Gönderiyi Hazırla</h1>
-  <p class="page-desc">
-    Hızlı yayın modu açık. Şu an sadece Facebook ve Instagram için anında veya tek seferlik planlı gönderi oluşturabilirsin.
-  </p>
-  <p class="small" style="margin:0 0 14px 0;">
-    <span class="badge brand">Launch Scope</span>
-    Facebook + Instagram | Şimdi Gönder + Tek Sefer | Varsayılan bağlı hesap
+  <p class="page-desc" data-i18n="page_prepare_desc">
+    Metni yaz, platform/format seç, medya ekle ve zamanla. Şimdi gönder, tek sefer, aralıklı veya kampanya modu kullanabilirsin.
   </p>
   {% if form_error %}
     <p class="small" style="margin:8px 0 12px 0;">
@@ -21,8 +17,10 @@
   <div class="form-row">
     <label class="form-label" data-i18n="label_schedule_mode">Gönderim Modu</label>
     <select class="input" name="schedule_mode" id="schedule-mode">
-      <option value="now" data-i18n="schedule_now">Şimdi Gönder (kuyruğa al)</option>
-      <option value="one_shot" data-i18n="schedule_one_shot">Tek Sefer (tarih/saat)</option>
+      <option value="now" {% if (form_data.get('schedule_mode') or 'now') == 'now' %}selected{% endif %} data-i18n="schedule_now">Şimdi Gönder (kuyruğa al)</option>
+      <option value="one_shot" {% if form_data.get('schedule_mode') == 'one_shot' %}selected{% endif %} data-i18n="schedule_one_shot">Tek Sefer (tarih/saat)</option>
+      <option value="interval" {% if form_data.get('schedule_mode') == 'interval' %}selected{% endif %} data-i18n="schedule_interval">Aralıklı (dakika bazlı)</option>
+      <option value="campaign" {% if form_data.get('schedule_mode') == 'campaign' %}selected{% endif %} data-i18n="schedule_campaign">Kampanya (günde N + tarih aralığı)</option>
     </select>
   </div>
 
@@ -34,8 +32,8 @@
       class="input textarea"
       rows="5"
       data-i18n-placeholder="placeholder_post_text"
-      placeholder="Metnini buraya yaz..."
-    ></textarea>
+      >{{ form_data.get('post_text', '') }}</textarea>
+      
     <div style="margin-top:8px;">
       <button type="button" class="btn" id="btn-ai-text" data-i18n="btn_ai_text">AI ile Metin Öner</button>
     </div>
@@ -49,8 +47,7 @@
       class="input textarea"
       rows="3"
       data-i18n-placeholder="placeholder_hashtags"
-      placeholder="#hedefler #mutluluk #bugün..."
-    ></textarea>
+      >{{ form_data.get('hashtags', '') }}</textarea>
     <div style="margin-top:8px;">
       <button type="button" class="btn" id="btn-ai-hashtag" data-i18n="btn_ai_hashtag">AI ile Hashtag Öner</button>
     </div>
@@ -59,18 +56,18 @@
   <div class="form-row">
     <label class="form-label" data-i18n="label_platforms">Platformlar</label>
     <div class="pill-group">
-      <label class="pill"><input type="checkbox" name="platforms" value="instagram"><span>Instagram</span></label>
-      <label class="pill"><input type="checkbox" name="platforms" value="facebook"><span>Facebook</span></label>
+      <label class="pill"><input type="checkbox" name="platforms" value="instagram" {% if 'instagram' in form_data.getlist('platforms') %}checked{% endif %}><span>Instagram</span></label>
+      <label class="pill"><input type="checkbox" name="platforms" value="facebook" {% if 'facebook' in form_data.getlist('platforms') %}checked{% endif %}><span>Facebook</span></label>
     </div>
-    <p class="helper-text">Launch sürümünde sadece bu iki platform açık.</p>
+    <p class="helper-text">Şu an aktif publish akışı Facebook ve Instagram için kullanılabilir.</p>
   </div>
 
   <div class="form-row">
     <label class="form-label" data-i18n="label_format">Format</label>
     <div class="pill-group">
-      <label class="pill"><input type="radio" name="format" value="normal" checked><span data-i18n="format_normal">Normal</span></label>
-      <label class="pill"><input type="radio" name="format" value="short"><span data-i18n="format_short">Short/Reels</span></label>
-      <label class="pill"><input type="radio" name="format" value="story"><span data-i18n="format_story">Story</span></label>
+      <label class="pill"><input type="radio" name="format" value="normal" {% if (form_data.get('format') or 'normal') == 'normal' %}checked{% endif %}><span data-i18n="format_normal">Normal</span></label>
+      <label class="pill"><input type="radio" name="format" value="short" {% if form_data.get('format') == 'short' %}checked{% endif %}><span data-i18n="format_short">Short/Reels</span></label>
+      <label class="pill"><input type="radio" name="format" value="story" {% if form_data.get('format') == 'story' %}checked{% endif %}><span data-i18n="format_story">Story</span></label>
     </div>
     <p class="helper-text" id="format-platform-note"></p>
   </div>
@@ -78,9 +75,9 @@
   <div class="form-row">
     <label class="form-label" data-i18n="label_media_type">Medya Türü</label>
     <div class="pill-group">
-      <label class="pill"><input type="radio" name="media_mode" value="mixed" checked><span data-i18n="media_mixed">Karışık</span></label>
-      <label class="pill"><input type="radio" name="media_mode" value="image"><span data-i18n="media_image">Sadece Foto</span></label>
-      <label class="pill"><input type="radio" name="media_mode" value="video"><span data-i18n="media_video">Sadece Video</span></label>
+      <label class="pill"><input type="radio" name="media_mode" value="mixed" {% if (form_data.get('media_mode') or 'mixed') == 'mixed' %}checked{% endif %}><span data-i18n="media_mixed">Karışık</span></label>
+      <label class="pill"><input type="radio" name="media_mode" value="image" {% if form_data.get('media_mode') == 'image' %}checked{% endif %}><span data-i18n="media_image">Sadece Foto</span></label>
+      <label class="pill"><input type="radio" name="media_mode" value="video" {% if form_data.get('media_mode') == 'video' %}checked{% endif %}><span data-i18n="media_video">Sadece Video</span></label>
     </div>
   </div>
 
@@ -95,7 +92,25 @@
 
   <div class="form-row" id="one-shot-wrap" style="display:none;">
     <label class="form-label" data-i18n="label_one_shot_time">Tek Sefer Zamanı</label>
-    <input type="datetime-local" name="schedule_at" id="schedule-at" class="input">
+    <input type="datetime-local" name="schedule_at" id="schedule-at" class="input" value="{{ form_data.get('schedule_at', '') }}">
+  </div>
+
+  <div class="form-row" id="interval-wrap" style="display:none;">
+    <label class="form-label" data-i18n="label_interval_start">Aralıklı Başlangıç</label>
+    <input type="datetime-local" name="interval_start_at" class="input" value="{{ form_data.get('interval_start_at', '') }}">
+    <label class="form-label" style="margin-top:12px;" data-i18n="label_interval_minutes">Aralık (dakika)</label>
+    <input type="number" min="1" step="1" name="interval_min" class="input" value="{{ form_data.get('interval_min', '60') }}">
+    <p class="helper-text" data-i18n="helper_interval_example">Örn: 60 = saatte bir, 1440 = günde bir</p>
+  </div>
+
+  <div class="form-row" id="campaign-wrap" style="display:none;">
+    <label class="form-label" data-i18n="label_campaign_start">Kampanya Başlangıç</label>
+    <input type="datetime-local" name="campaign_start_at" class="input" value="{{ form_data.get('campaign_start_at', '') }}">
+    <label class="form-label" style="margin-top:12px;" data-i18n="label_campaign_end_date">Kampanya Bitiş (Tarih)</label>
+    <input type="date" name="campaign_end_date" class="input" value="{{ form_data.get('campaign_end_date', '') }}">
+    <label class="form-label" style="margin-top:12px;" data-i18n="label_campaign_per_day">Günde Kaç Paylaşım</label>
+    <input type="number" min="1" max="96" step="1" name="campaign_per_day" class="input" value="{{ form_data.get('campaign_per_day', '1') }}">
+    <p class="helper-text" data-i18n="helper_campaign_example">Örn: 20 => yaklaşık her 72 dakikada bir paylaşım.</p>
   </div>
 
   <input type="hidden" id="targets" name="targets" value="">
