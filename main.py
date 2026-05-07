@@ -17,6 +17,7 @@ from email.message import EmailMessage
 
 import requests
 from dotenv import load_dotenv
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from ai_routes import ai_bp
@@ -586,6 +587,30 @@ def infer_media_kind(filename: str) -> str:
     return "file"
 
 
+def optimize_uploaded_image(path: Path) -> None:
+    try:
+        with Image.open(path) as img:
+            img = ImageOps.exif_transpose(img)
+            img.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            suffix = path.suffix.lower()
+            if suffix in {".jpg", ".jpeg"}:
+                if img.mode not in ("RGB", "L"):
+                    img = img.convert("RGB")
+                img.save(path, format="JPEG", optimize=True, quality=85, progressive=True)
+            elif suffix == ".png":
+                if img.mode not in ("RGB", "RGBA", "L", "LA", "P"):
+                    img = img.convert("RGBA")
+                img.save(path, format="PNG", optimize=True)
+            elif suffix == ".webp":
+                if img.mode not in ("RGB", "RGBA", "L", "LA"):
+                    img = img.convert("RGBA")
+                img.save(path, format="WEBP", quality=85, method=6)
+            else:
+                return
+    except (UnidentifiedImageError, OSError, ValueError):
+        return
+
+
 def save_uploads(files, user_id: int | None = None) -> list[dict]:
     uid = int(user_id or current_user_id() or 0)
     if uid < 1:
@@ -600,6 +625,8 @@ def save_uploads(files, user_id: int | None = None) -> list[dict]:
         safe_name = f"{uuid.uuid4().hex}{ext}"
         abs_path = uploads_dir / safe_name
         f.save(abs_path)
+        if infer_media_kind(original) == "image":
+            optimize_uploaded_image(abs_path)
         out.append({
             "kind": infer_media_kind(original),
             "path": f"uploads/{uid}/{safe_name}",
