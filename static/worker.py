@@ -1073,7 +1073,7 @@ def mark_scheduled_auth_required_if_needed(scheduled: list, queue_item: dict, t:
     return changed
 
 
-def mark_accounts_auth_required_if_needed(accounts: dict, queue_item: dict, t: dt.datetime) -> bool:
+def auth_failed_platform_messages(queue_item: dict) -> dict[str, str]:
     failed_platforms = {
         str(platform).strip().lower()
         for platform in (queue_item.get("platforms") or [])
@@ -1085,12 +1085,28 @@ def mark_accounts_auth_required_if_needed(accounts: dict, queue_item: dict, t: d
         if str(platform).strip()
     }
     if not failed_platforms:
+        return {}
+
+    logs = queue_item.get("logs") or []
+    latest_for_platform: dict[str, str] = {}
+    for entry in reversed(logs):
+        platform = str((entry or {}).get("platform") or "").strip().lower()
+        if not platform or platform not in failed_platforms or platform in latest_for_platform:
+            continue
+        message = str((entry or {}).get("message") or "").strip()
+        if message.startswith("needs_auth") or is_auth_publish_error(message):
+            latest_for_platform[platform] = message
+    return latest_for_platform
+
+
+def mark_accounts_auth_required_if_needed(accounts: dict, queue_item: dict, t: dt.datetime) -> bool:
+    auth_failures = auth_failed_platform_messages(queue_item)
+    if not auth_failures:
         return False
 
     changed = False
-    last_error = (queue_item.get("last_error") or "needs_auth").strip() or "needs_auth"
     stamp = iso(t)
-    for platform in failed_platforms:
+    for platform, last_error in auth_failures.items():
         cfg = accounts.get(platform)
         if not isinstance(cfg, dict):
             continue
