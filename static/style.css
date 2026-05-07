@@ -398,6 +398,29 @@ a{color:inherit; text-decoration:none}
   margin: 48px auto 0;
 }
 
+.helper-links{
+  margin: 8px 0 0;
+}
+
+.helper-links a{
+  color: #8ab4ff;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.reset-link-box{
+  margin: 10px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+}
+
+.reset-link-box a{
+  color: #8ab4ff;
+  word-break: break-all;
+}
+
 .legal-shell{
   max-width: 860px;
   margin: 0 auto;

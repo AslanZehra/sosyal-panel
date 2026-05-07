@@ -28,6 +28,8 @@ app.db
 # Runtime data / uploads
 data/*.json
 data/*.log
+data/users/
+data/meta_pending.json
 drafts.json
 scheduled_posts.json
 uploads/*

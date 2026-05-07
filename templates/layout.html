@@ -26,12 +26,12 @@
         </nav>
       {% else %}
         <nav class="nav">
-          <a href="{{ url_for('home') }}" class="{% if request.path == '/' %}active{% endif %}">Ana Sayfa</a>
-          <a href="{{ url_for('pricing') }}" class="{% if request.path == '/pricing' %}active{% endif %}">Fiyatlar</a>
-          <a href="{{ url_for('privacy') }}" class="{% if request.path == '/privacy' %}active{% endif %}">Gizlilik</a>
-          <a href="{{ url_for('terms') }}" class="{% if request.path == '/terms' %}active{% endif %}">Şartlar</a>
-          <a href="{{ url_for('login') }}" class="{% if request.path == '/login' %}active{% endif %}">Giriş</a>
-          <a href="{{ url_for('register') }}" class="{% if request.path == '/register' %}active{% endif %}">Kayıt Ol</a>
+          <a href="{{ url_for('home') }}" class="{% if request.path == '/' %}active{% endif %}" data-i18n="nav_home">Ana Sayfa</a>
+          <a href="{{ url_for('pricing') }}" class="{% if request.path == '/pricing' %}active{% endif %}" data-i18n="public_nav_pricing">Fiyatlar</a>
+          <a href="{{ url_for('privacy') }}" class="{% if request.path == '/privacy' %}active{% endif %}" data-i18n="public_nav_privacy">Gizlilik</a>
+          <a href="{{ url_for('terms') }}" class="{% if request.path == '/terms' %}active{% endif %}" data-i18n="public_nav_terms">Şartlar</a>
+          <a href="{{ url_for('login') }}" class="{% if request.path == '/login' %}active{% endif %}" data-i18n="nav_login">Giriş</a>
+          <a href="{{ url_for('register') }}" class="{% if request.path == '/register' %}active{% endif %}" data-i18n="nav_register">Kayıt Ol</a>
         </nav>
       {% endif %}
 
@@ -39,7 +39,7 @@
         {% if current_user %}
           <span class="badge brand">{{ current_user.email }}</span>
           <form method="post" action="{{ url_for('logout') }}" style="margin:0;">
-            <button type="submit" class="btn">Çıkış</button>
+            <button type="submit" class="btn" data-i18n="nav_logout">Çıkış</button>
           </form>
         {% endif %}
         <select class="select" id="lang-select" aria-label="Language">
@@ -60,15 +60,15 @@
 
   <footer class="site-footer">
     <div class="site-footer-inner">
-      <p>MySocial Panel, sosyal medya içerik operasyonunu tek merkezden yönetmek için geliştirilmiş çok kullanıcılı bir platformdur.</p>
+      <p data-i18n="footer_tagline">MySocial Panel, sosyal medya içerik operasyonunu tek merkezden yönetmek için geliştirilmiş çok kullanıcılı bir platformdur.</p>
       <div class="site-footer-links">
-        <a href="{{ url_for('pricing') }}">Fiyatlar</a>
-        <a href="{{ url_for('privacy') }}">Gizlilik</a>
-        <a href="{{ url_for('terms') }}">Şartlar</a>
+        <a href="{{ url_for('pricing') }}" data-i18n="footer_pricing">Fiyatlar</a>
+        <a href="{{ url_for('privacy') }}" data-i18n="footer_privacy">Gizlilik</a>
+        <a href="{{ url_for('terms') }}" data-i18n="footer_terms">Şartlar</a>
         {% if current_user %}
-          <a href="{{ url_for('app_home') }}">Uygulamaya Dön</a>
+          <a href="{{ url_for('app_home') }}" data-i18n="footer_back_app">Uygulamaya Dön</a>
         {% else %}
-          <a href="{{ url_for('register') }}">Ücretsiz Başla</a>
+          <a href="{{ url_for('register') }}" data-i18n="footer_start_free">Ücretsiz Başla</a>
         {% endif %}
       </div>
     </div>

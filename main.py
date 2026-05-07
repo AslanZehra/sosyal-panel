@@ -10,6 +10,10 @@ import sqlite3
 import uuid
 import datetime as dt
 import urllib.parse
+import hashlib
+import secrets
+import smtplib
+from email.message import EmailMessage
 
 import requests
 from dotenv import load_dotenv
@@ -27,6 +31,14 @@ META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
 META_REDIRECT_URI = os.getenv("META_REDIRECT_URI", "").strip()
 META_GRAPH_VERSION = os.getenv("META_GRAPH_VERSION", "v19.0").strip() or "v19.0"
 X_ME_URL = (os.getenv("X_ME_URL") or "https://api.x.com/2/users/me").strip()
+SMTP_HOST = (os.getenv("SMTP_HOST") or "").strip()
+SMTP_PORT = int((os.getenv("SMTP_PORT") or "587").strip() or "587")
+SMTP_USERNAME = (os.getenv("SMTP_USERNAME") or "").strip()
+SMTP_PASSWORD = (os.getenv("SMTP_PASSWORD") or "").strip()
+SMTP_FROM_EMAIL = (os.getenv("SMTP_FROM_EMAIL") or "").strip()
+SMTP_USE_TLS = (os.getenv("SMTP_USE_TLS") or "1").strip() not in {"0", "false", "False"}
+SMTP_USE_SSL = (os.getenv("SMTP_USE_SSL") or "0").strip() in {"1", "true", "True"}
+PASSWORD_RESET_TTL_MINUTES = max(10, int((os.getenv("PASSWORD_RESET_TTL_MINUTES") or "60").strip() or "60"))
 META_LOGIN_SCOPE = (
     os.getenv(
         "META_LOGIN_SCOPE",
@@ -113,6 +125,43 @@ def _format_local_dt(value: str) -> str:
     return parsed.strftime("%d.%m.%Y %H:%M")
 
 
+def _sanitize_secret_text(value: str) -> str:
+    text = str(value or "")
+    if META_APP_SECRET:
+        text = text.replace(META_APP_SECRET, "[redacted]")
+        text = text.replace(urllib.parse.quote(META_APP_SECRET, safe=""), "[redacted]")
+    return text
+
+
+def _meta_error_message(exc: Exception, fallback: str) -> str:
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        status = exc.response.status_code
+        try:
+            payload = exc.response.json()
+        except Exception:
+            payload = None
+
+        detail = ""
+        if isinstance(payload, dict):
+            err = payload.get("error")
+            if isinstance(err, dict):
+                detail = (
+                    err.get("message")
+                    or err.get("error_user_msg")
+                    or err.get("error_subcode")
+                    or ""
+                )
+            if not detail:
+                detail = payload.get("message") or ""
+        if not detail:
+            detail = exc.response.text or fallback
+
+        detail = _sanitize_secret_text(detail).strip()
+        return f"{fallback} ({status}): {detail[:500]}"
+
+    return _sanitize_secret_text(fallback)
+
+
 def load_json(path: Path, default):
     if path.exists():
         try:
@@ -192,6 +241,22 @@ def init_user_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT UNIQUE NOT NULL,
+                expires_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                used_at TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id)"
+        )
 
 
 def get_user_by_email(email: str):
@@ -213,6 +278,123 @@ def create_user(email: str, password: str) -> int:
         )
         conn.commit()
         return int(cur.lastrowid)
+
+
+def update_user_password(user_id: int, password: str) -> None:
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(password), int(user_id)),
+        )
+        conn.commit()
+
+
+def _password_reset_token_hash(raw_token: str) -> str:
+    return hashlib.sha256((raw_token or "").encode("utf-8")).hexdigest()
+
+
+def create_password_reset_token(user_id: int) -> tuple[str, str]:
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = _password_reset_token_hash(raw_token)
+    created_at = _now()
+    expires_at = created_at + dt.timedelta(minutes=PASSWORD_RESET_TTL_MINUTES)
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO password_reset_tokens(user_id, token_hash, expires_at, created_at, used_at)
+            VALUES(?,?,?,?,NULL)
+            """,
+            (int(user_id), token_hash, _iso(expires_at), _iso(created_at)),
+        )
+        conn.commit()
+    return raw_token, _iso(expires_at)
+
+
+def get_password_reset_token(raw_token: str):
+    token_hash = _password_reset_token_hash(raw_token)
+    with get_db_connection() as conn:
+        return conn.execute(
+            """
+            SELECT prt.id, prt.user_id, prt.expires_at, prt.created_at, prt.used_at, u.email
+            FROM password_reset_tokens prt
+            JOIN users u ON u.id = prt.user_id
+            WHERE prt.token_hash = ?
+            """,
+            (token_hash,),
+        ).fetchone()
+
+
+def mark_password_reset_token_used(token_id: int) -> None:
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE password_reset_tokens SET used_at = ? WHERE id = ?",
+            (_iso(_now()), int(token_id)),
+        )
+        conn.commit()
+
+
+def invalidate_password_reset_tokens_for_user(user_id: int) -> None:
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE password_reset_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+            (_iso(_now()), int(user_id)),
+        )
+        conn.commit()
+
+
+def password_reset_token_error(token_row) -> str:
+    if not token_row:
+        return "Şifre sıfırlama bağlantısı geçersiz."
+    if (token_row["used_at"] or "").strip():
+        return "Bu şifre sıfırlama bağlantısı zaten kullanılmış."
+    expires_at = _parse_dt_local(token_row["expires_at"] or "")
+    if not expires_at or expires_at < _now():
+        return "Şifre sıfırlama bağlantısının süresi dolmuş."
+    return ""
+
+
+def is_local_request_host() -> bool:
+    host = (request.host or "").split(":", 1)[0].strip().lower()
+    return host in {"127.0.0.1", "localhost"}
+
+
+def send_password_reset_email(target_email: str, reset_link: str) -> tuple[bool, str]:
+    if not SMTP_HOST or not SMTP_FROM_EMAIL:
+        return False, "smtp_not_configured"
+
+    msg = EmailMessage()
+    msg["Subject"] = "MySocial Panel | Sifre Sifirlama"
+    msg["From"] = SMTP_FROM_EMAIL
+    msg["To"] = target_email
+    msg.set_content(
+        "\n".join(
+            [
+                "MySocial Panel sifreni sifirlamak icin asagidaki baglantiyi kullan:",
+                "",
+                reset_link,
+                "",
+                f"Bu baglanti {PASSWORD_RESET_TTL_MINUTES} dakika boyunca gecerli kalir.",
+                "Eger bu talebi sen yapmadiysan bu e-postayi yok sayabilirsin.",
+            ]
+        )
+    )
+
+    try:
+        if SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                if SMTP_USERNAME:
+                    server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                if SMTP_USE_TLS:
+                    server.starttls()
+                if SMTP_USERNAME:
+                    server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(msg)
+        return True, "sent"
+    except Exception as exc:
+        return False, str(exc)
 
 
 def current_user_id() -> int | None:
@@ -827,6 +1009,8 @@ def enforce_login_for_app():
         "home",
         "login",
         "register",
+        "forgot_password",
+        "reset_password",
         "pricing",
         "privacy",
         "terms",
@@ -881,6 +1065,7 @@ def login():
         return redirect(url_for("app_home"))
 
     form_error = ""
+    form_success = (request.args.get("msg") or "").strip()
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
@@ -893,7 +1078,77 @@ def login():
             migrate_legacy_data_if_needed(int(user["id"]))
             return redirect(url_for("app_home"))
 
-    return render_template("auth_login.html", form_error=form_error)
+    return render_template("auth_login.html", form_error=form_error, form_success=form_success)
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user_id():
+        return redirect(url_for("app_home"))
+
+    form_error = ""
+    form_success = ""
+    debug_reset_link = ""
+
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        if not email:
+            form_error = "E-posta zorunlu."
+        else:
+            form_success = "Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi."
+            user = get_user_by_email(email)
+            if user:
+                raw_token, _ = create_password_reset_token(int(user["id"]))
+                reset_link = url_for("reset_password", token=raw_token, _external=True)
+                sent, reason = send_password_reset_email(email, reset_link)
+                if not sent and is_local_request_host():
+                    debug_reset_link = reset_link
+                    form_success = "E-posta altyapısı kurulu değil. Lokal test için aşağıdaki sıfırlama bağlantısını kullan."
+                elif not sent:
+                    form_success = "Bu e-posta kayıtlıysa şifre sıfırlama bağlantısı gönderildi."
+
+    return render_template(
+        "auth_forgot_password.html",
+        form_error=form_error,
+        form_success=form_success,
+        debug_reset_link=debug_reset_link,
+    )
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token: str):
+    if current_user_id():
+        logout_user_session()
+
+    token_row = get_password_reset_token(token)
+    token_error = password_reset_token_error(token_row)
+    form_error = ""
+
+    if request.method == "POST" and not token_error:
+        password = request.form.get("password") or ""
+        password2 = request.form.get("password2") or ""
+
+        if len(password) < 6:
+            form_error = "Şifre en az 6 karakter olmalı."
+        elif password != password2:
+            form_error = "Şifreler eşleşmiyor."
+        else:
+            update_user_password(int(token_row["user_id"]), password)
+            invalidate_password_reset_tokens_for_user(int(token_row["user_id"]))
+            mark_password_reset_token_used(int(token_row["id"]))
+            return redirect(
+                url_for(
+                    "login",
+                    msg="Şifren güncellendi. Yeni şifrenle giriş yapabilirsin.",
+                )
+            )
+
+    return render_template(
+        "auth_reset_password.html",
+        token_error=token_error,
+        form_error=form_error,
+        token=token,
+    )
 
 
 @app.post("/logout")
@@ -958,6 +1213,7 @@ def sitemap_xml():
         ("/terms", "yearly"),
         ("/login", "monthly"),
         ("/register", "monthly"),
+        ("/forgot-password", "monthly"),
     ]
     rows = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -1134,7 +1390,7 @@ def meta_callback():
         token_res.raise_for_status()
         token_payload = token_res.json()
     except Exception as exc:
-        return f"Meta token alma hatasi: {exc}", 400
+        return _meta_error_message(exc, "Meta token alma hatasi"), 400
 
     user_access_token = (token_payload.get("access_token") or "").strip()
     if not user_access_token:
@@ -1161,7 +1417,7 @@ def meta_callback():
         pages_res.raise_for_status()
         pages_payload = pages_res.json()
     except Exception as exc:
-        return f"Page listesi alinmadi: {exc}", 400
+        return _meta_error_message(exc, "Page listesi alinmadi"), 400
 
     pages = pages_payload.get("data") or []
     if not pages:
