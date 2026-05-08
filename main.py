@@ -47,8 +47,9 @@ META_LOGIN_SCOPE = (
     ).strip()
     or "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
 )
-LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook")
-LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot", "interval", "campaign"}
+LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook", "x")
+LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot", "interval", "campaign", "weekly"}
+WEEKDAY_CODES = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 
 # -----------------------------
 # Paths & storage
@@ -113,10 +114,50 @@ def _parse_date_local(s: str) -> dt.date | None:
         return None
 
 
+def _parse_time_local(s: str) -> dt.time | None:
+    s = (s or "").strip()
+    if not s:
+        return None
+    for fmt in ("%H:%M", "%H:%M:%S"):
+        try:
+            return dt.datetime.strptime(s, fmt).time()
+        except Exception:
+            continue
+    return None
+
+
 def _iso(d: dt.datetime | None) -> str:
     if not d:
         return ""
     return d.replace(microsecond=0).isoformat()
+
+
+def normalize_weekly_days(values: list[str] | tuple[str, ...] | None) -> list[str]:
+    if not values:
+        return []
+    seen: list[str] = []
+    for raw in values:
+        value = str(raw or "").strip().upper()
+        if value in WEEKDAY_CODES and value not in seen:
+            seen.append(value)
+    return seen
+
+
+def next_weekly_run(day_codes: list[str] | tuple[str, ...], clock_text: str, anchor: dt.datetime) -> dt.datetime | None:
+    days = normalize_weekly_days(list(day_codes or []))
+    send_time = _parse_time_local(clock_text)
+    if not days or not send_time:
+        return None
+
+    anchor = anchor.replace(second=0, microsecond=0)
+    for offset in range(0, 14):
+        cand_date = anchor.date() + dt.timedelta(days=offset)
+        if WEEKDAY_CODES[cand_date.weekday()] not in days:
+            continue
+        candidate = dt.datetime.combine(cand_date, send_time)
+        if candidate >= anchor:
+            return candidate
+    return None
 
 
 def _format_local_dt(value: str) -> str:
@@ -687,7 +728,7 @@ def validate_post_payload(text: str, hashtags: str, platforms: list[str], fmt: s
 
     launch_blocked = [p for p in selected if p not in LAUNCH_ENABLED_PLATFORMS]
     if launch_blocked:
-        errors.append("Hızlı yayında şu an sadece Facebook ve Instagram açık.")
+        errors.append("Şu an gerçek publish akışı Facebook, Instagram ve X için açık. YouTube/TikTok henüz tamamlanmadı.")
 
     if "instagram" in selected_set and not media:
         errors.append("Instagram için en az 1 foto/video seçmelisin.")
@@ -697,9 +738,19 @@ def validate_post_payload(text: str, hashtags: str, platforms: list[str], fmt: s
             errors.append("Story formatında tek medya seçmelisin.")
         if "facebook" in selected_set:
             errors.append("Story formatı şu an sadece Instagram için gerçek story olarak destekleniyor.")
+        if "x" in selected_set:
+            errors.append("X için story formatı yok.")
 
     if "facebook" in selected_set and not (text.strip() or hashtags.strip() or media):
         errors.append("Facebook için metin/hashtag veya medya gerekir.")
+
+    if "x" in selected_set:
+        if media:
+            errors.append("X için medya paylaşımı henüz açık değil. Şimdilik sadece metin paylaşımı destekleniyor.")
+        if fmt != "normal":
+            errors.append("X için şu an sadece normal metin paylaşımı destekleniyor.")
+        if not (text.strip() or hashtags.strip()):
+            errors.append("X için metin veya hashtag girmen gerekir.")
 
     return errors
 
@@ -888,7 +939,7 @@ def reactivate_scheduled_jobs_after_auth(accounts: dict, user_id: int | None = N
         jtype = (job.get("type") or "").strip().lower()
         if jtype == "one_shot":
             job["status"] = "scheduled"
-        elif jtype in {"interval", "interval_range", "recurring"}:
+        elif jtype in {"interval", "interval_range", "weekly", "recurring"}:
             job["status"] = "active"
         else:
             continue
@@ -1526,6 +1577,7 @@ def meta_select_page():
 def prepare():
     form_data = request.form if request.method == "POST" else {}
     selected_platforms = request.form.getlist("platforms") if request.method == "POST" else []
+    selected_weekly_days = request.form.getlist("weekly_days") if request.method == "POST" else []
     if request.method == "POST":
         action = (request.form.get("action") or "submit").strip().lower()
         schedule_mode = (request.form.get("schedule_mode") or "now").strip().lower()
@@ -1543,6 +1595,7 @@ def prepare():
                 form_error="Geçersiz gönderim modu seçildi.",
                 form_data=form_data,
                 selected_platforms=selected_platforms,
+                selected_weekly_days=selected_weekly_days,
             ), 400
 
         media_files = request.files.getlist("media")
@@ -1569,6 +1622,7 @@ def prepare():
                 form_error=" ".join(errors),
                 form_data=form_data,
                 selected_platforms=selected_platforms,
+                selected_weekly_days=selected_weekly_days,
             ), 400
 
         if action == "draft":
@@ -1609,6 +1663,46 @@ def prepare():
                 "interval_min": interval_min,
                 "start_at": _iso(start_at),
                 "next_run_at": _iso(start_at),
+            }
+            scheduled = load_json(user_file("scheduled"), [])
+            scheduled.append(obj)
+            save_json(user_file("scheduled"), scheduled)
+            return redirect(url_for("tasks"))
+
+        if schedule_mode == "weekly":
+            weekly_days = normalize_weekly_days(request.form.getlist("weekly_days"))
+            weekly_time = (request.form.get("weekly_time") or "").strip()
+            start_at = _parse_dt_local(request.form.get("weekly_start_at", "")) or _now()
+            end_at = _parse_dt_local(request.form.get("weekly_end_at", ""))
+            next_run_at = next_weekly_run(weekly_days, weekly_time, start_at)
+
+            if not weekly_days or not weekly_time or not next_run_at:
+                return render_template(
+                    "prepare.html",
+                    form_error="Haftalık plan için en az bir gün ve saat seçmelisin.",
+                    form_data=form_data,
+                    selected_platforms=selected_platforms,
+                    selected_weekly_days=selected_weekly_days,
+                ), 400
+
+            if end_at and next_run_at > end_at:
+                return render_template(
+                    "prepare.html",
+                    form_error="Haftalık planın ilk çalışması bitiş zamanından sonra kalıyor.",
+                    form_data=form_data,
+                    selected_platforms=selected_platforms,
+                    selected_weekly_days=selected_weekly_days,
+                ), 400
+
+            obj = {
+                **base,
+                "type": "weekly",
+                "status": "active",
+                "weekly_days": weekly_days,
+                "weekly_time": weekly_time,
+                "start_at": _iso(start_at),
+                "end_at": _iso(end_at) if end_at else "",
+                "next_run_at": _iso(next_run_at),
             }
             scheduled = load_json(user_file("scheduled"), [])
             scheduled.append(obj)
@@ -1660,7 +1754,12 @@ def prepare():
         save_json(user_file("scheduled"), scheduled)
         return redirect(url_for("tasks"))
 
-    return render_template("prepare.html", form_data=form_data, selected_platforms=selected_platforms)
+    return render_template(
+        "prepare.html",
+        form_data=form_data,
+        selected_platforms=selected_platforms,
+        selected_weekly_days=selected_weekly_days,
+    )
 
 
 # -----------------------------

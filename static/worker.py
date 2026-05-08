@@ -44,6 +44,7 @@ INSTAGRAM_PUBLISH_WAIT_SECONDS = [2, 3, 5]
 WORKER_POLL_SECONDS = max(1.0, float((os.getenv("WORKER_POLL_SECONDS") or "3").strip()))
 MAX_ITEM_LOGS = 40
 MAX_WORKER_LOG_LINES = 1500
+WEEKDAY_CODES = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 
 DATA_DIR.mkdir(exist_ok=True)
 USERS_DATA_DIR.mkdir(exist_ok=True)
@@ -80,6 +81,46 @@ def iso(d: dt.datetime | None) -> str:
     if not d:
         return ""
     return d.replace(microsecond=0).isoformat()
+
+
+def parse_time_value(s: str) -> dt.time | None:
+    s = (s or "").strip()
+    if not s:
+        return None
+    for fmt in ("%H:%M", "%H:%M:%S"):
+        try:
+            return dt.datetime.strptime(s, fmt).time()
+        except Exception:
+            continue
+    return None
+
+
+def normalize_weekly_days(values: list[str] | tuple[str, ...] | None) -> list[str]:
+    if not values:
+        return []
+    seen: list[str] = []
+    for raw in values:
+        value = str(raw or "").strip().upper()
+        if value in WEEKDAY_CODES and value not in seen:
+            seen.append(value)
+    return seen
+
+
+def next_weekly_run(day_codes: list[str] | tuple[str, ...], clock_text: str, anchor: dt.datetime) -> dt.datetime | None:
+    days = normalize_weekly_days(list(day_codes or []))
+    send_time = parse_time_value(clock_text)
+    if not days or not send_time:
+        return None
+
+    anchor = anchor.replace(second=0, microsecond=0)
+    for offset in range(0, 14):
+        cand_date = anchor.date() + dt.timedelta(days=offset)
+        if WEEKDAY_CODES[cand_date.weekday()] not in days:
+            continue
+        candidate = dt.datetime.combine(cand_date, send_time)
+        if candidate >= anchor:
+            return candidate
+    return None
 
 
 def trim_log_file(path: Path, max_lines: int):
@@ -1020,6 +1061,32 @@ def move_due_jobs_to_queue(scheduled: list, queue: list, t: dt.datetime) -> int:
                     job["status"] = "completed"
                 moved_count += 1
 
+        if jtype == "weekly" and status == "active":
+            next_run = parse_iso(job.get("next_run_at", "")) or parse_iso(job.get("start_at", "")) or t
+            end_at = parse_iso(job.get("end_at", ""))
+
+            if end_at and next_run > end_at:
+                job["status"] = "completed"
+                moved_count += 1
+                continue
+
+            if next_run <= t:
+                queue.append(make_queue_item_from_job(job, t, iso(next_run)))
+                next_value = next_weekly_run(
+                    job.get("weekly_days") or [],
+                    job.get("weekly_time") or "",
+                    max(t, next_run) + dt.timedelta(minutes=1),
+                )
+                if not next_value:
+                    job["status"] = "failed"
+                    job["last_error"] = "weekly schedule invalid"
+                    moved_count += 1
+                    continue
+                job["next_run_at"] = iso(next_value)
+                if end_at and next_value > end_at:
+                    job["status"] = "completed"
+                moved_count += 1
+
     return moved_count
 
 
@@ -1042,7 +1109,7 @@ def mark_scheduled_sent_if_needed(scheduled: list, queue_item: dict, t: dt.datet
         elif jtype == "interval":
             job["last_sent_at"] = iso(t)
             changed = True
-        elif jtype == "interval_range":
+        elif jtype in {"interval_range", "weekly"}:
             job["last_sent_at"] = iso(t)
             changed = True
 

@@ -2,6 +2,7 @@
   const modeSel = document.getElementById("schedule-mode");
   const oneShotWrap = document.getElementById("one-shot-wrap");
   const intervalWrap = document.getElementById("interval-wrap");
+  const weeklyWrap = document.getElementById("weekly-wrap");
   const campaignWrap = document.getElementById("campaign-wrap");
   const actionField = document.getElementById("action-field");
   const btnDraft = document.getElementById("btn-save-draft");
@@ -64,6 +65,7 @@
     const m = mode || "now";
     if (oneShotWrap) oneShotWrap.style.display = m === "one_shot" ? "" : "none";
     if (intervalWrap) intervalWrap.style.display = m === "interval" ? "" : "none";
+    if (weeklyWrap) weeklyWrap.style.display = m === "weekly" ? "" : "none";
     if (campaignWrap) campaignWrap.style.display = m === "campaign" ? "" : "none";
   }
 

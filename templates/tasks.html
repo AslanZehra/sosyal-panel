@@ -29,6 +29,8 @@
                 Tek Sefer
               {% elif jtype == 'interval' %}
                 Aralıklı
+              {% elif jtype == 'weekly' %}
+                Haftalık
               {% elif jtype == 'interval_range' %}
                 Kampanya
               {% else %}
@@ -57,6 +59,12 @@
         {% elif jtype == 'interval' %}
           <p class="small">Başlangıç: <b title="{{ p.start_at or '-' }}">{{ p.start_at|local_dt if p.start_at else '-' }}</b></p>
           <p class="small">Aralık: <b>{{ p.interval_min or '-' }} dk</b></p>
+          <p class="small">Sonraki Çalışma: <b title="{{ p.next_run_at or '-' }}">{{ p.next_run_at|local_dt if p.next_run_at else '-' }}</b></p>
+        {% elif jtype == 'weekly' %}
+          <p class="small">Günler: <b>{{ (p.weekly_days or [])|join(', ') or '-' }}</b></p>
+          <p class="small">Saat: <b>{{ p.weekly_time or '-' }}</b></p>
+          <p class="small">Başlangıç: <b title="{{ p.start_at or '-' }}">{{ p.start_at|local_dt if p.start_at else '-' }}</b></p>
+          <p class="small">Bitiş: <b title="{{ p.end_at or '-' }}">{{ p.end_at|local_dt if p.end_at else '-' }}</b></p>
           <p class="small">Sonraki Çalışma: <b title="{{ p.next_run_at or '-' }}">{{ p.next_run_at|local_dt if p.next_run_at else '-' }}</b></p>
         {% elif jtype == 'interval_range' %}
           <p class="small">Başlangıç: <b title="{{ p.start_at or '-' }}">{{ p.start_at|local_dt if p.start_at else '-' }}</b></p>

@@ -20,6 +20,7 @@
       <option value="now" {% if (form_data.get('schedule_mode') or 'now') == 'now' %}selected{% endif %} data-i18n="schedule_now">Şimdi Gönder (kuyruğa al)</option>
       <option value="one_shot" {% if form_data.get('schedule_mode') == 'one_shot' %}selected{% endif %} data-i18n="schedule_one_shot">Tek Sefer (tarih/saat)</option>
       <option value="interval" {% if form_data.get('schedule_mode') == 'interval' %}selected{% endif %} data-i18n="schedule_interval">Aralıklı (dakika bazlı)</option>
+      <option value="weekly" {% if form_data.get('schedule_mode') == 'weekly' %}selected{% endif %} data-i18n="plan_weekly">Haftanın Günleri (gün seç + saat)</option>
       <option value="campaign" {% if form_data.get('schedule_mode') == 'campaign' %}selected{% endif %} data-i18n="schedule_campaign">Kampanya (günde N + tarih aralığı)</option>
     </select>
   </div>
@@ -58,8 +59,9 @@
     <div class="pill-group">
       <label class="pill"><input type="checkbox" name="platforms" value="instagram" {% if 'instagram' in selected_platforms %}checked{% endif %}><span>Instagram</span></label>
       <label class="pill"><input type="checkbox" name="platforms" value="facebook" {% if 'facebook' in selected_platforms %}checked{% endif %}><span>Facebook</span></label>
+      <label class="pill"><input type="checkbox" name="platforms" value="x" {% if 'x' in selected_platforms %}checked{% endif %}><span>X</span></label>
     </div>
-    <p class="helper-text">Şu an aktif publish akışı Facebook ve Instagram için kullanılabilir.</p>
+    <p class="helper-text">Facebook ve Instagram tam akışta çalışır. X şu an metin-only beta modundadır. YouTube/TikTok için gerçek API entegrasyonu hâlâ eksik.</p>
   </div>
 
   <div class="form-row">
@@ -103,6 +105,25 @@
     <p class="helper-text" data-i18n="helper_interval_example">Örn: 60 = saatte bir, 1440 = günde bir</p>
   </div>
 
+  <div class="form-row" id="weekly-wrap" style="display:none;">
+    <label class="form-label" data-i18n="label_weekly_days">Haftanın Günleri</label>
+    <div class="pill-group">
+      <label class="pill"><input type="checkbox" name="weekly_days" value="MO" {% if 'MO' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_mon">Pzt</span></label>
+      <label class="pill"><input type="checkbox" name="weekly_days" value="TU" {% if 'TU' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_tue">Sal</span></label>
+      <label class="pill"><input type="checkbox" name="weekly_days" value="WE" {% if 'WE' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_wed">Çar</span></label>
+      <label class="pill"><input type="checkbox" name="weekly_days" value="TH" {% if 'TH' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_thu">Per</span></label>
+      <label class="pill"><input type="checkbox" name="weekly_days" value="FR" {% if 'FR' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_fri">Cum</span></label>
+      <label class="pill"><input type="checkbox" name="weekly_days" value="SA" {% if 'SA' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_sat">Cmt</span></label>
+      <label class="pill"><input type="checkbox" name="weekly_days" value="SU" {% if 'SU' in selected_weekly_days %}checked{% endif %}><span data-i18n="day_sun">Paz</span></label>
+    </div>
+    <label class="form-label" style="margin-top:12px;" data-i18n="label_weekly_time">Saat</label>
+    <input type="time" name="weekly_time" class="input" value="{{ form_data.get('weekly_time', '') }}">
+    <label class="form-label" style="margin-top:12px;" data-i18n="label_weekly_start">Başlangıç</label>
+    <input type="datetime-local" name="weekly_start_at" class="input" value="{{ form_data.get('weekly_start_at', '') }}">
+    <label class="form-label" style="margin-top:12px;" data-i18n="label_weekly_end">Bitiş (opsiyonel)</label>
+    <input type="datetime-local" name="weekly_end_at" class="input" value="{{ form_data.get('weekly_end_at', '') }}">
+  </div>
+
   <div class="form-row" id="campaign-wrap" style="display:none;">
     <label class="form-label" data-i18n="label_campaign_start">Kampanya Başlangıç</label>
     <input type="datetime-local" name="campaign_start_at" class="input" value="{{ form_data.get('campaign_start_at', '') }}">
@@ -113,7 +134,19 @@
     <p class="helper-text" data-i18n="helper_campaign_example">Örn: 20 => yaklaşık her 72 dakikada bir paylaşım.</p>
   </div>
 
-  <input type="hidden" id="targets" name="targets" value="">
+  <div class="form-row">
+    <label class="form-label" for="targets" data-i18n="label_targets">Hedefler (Opsiyonel: Sayfa/Grup)</label>
+    <textarea
+      id="targets"
+      name="targets"
+      class="input textarea"
+      rows="4"
+      data-i18n-placeholder="placeholder_targets"
+      >{{ form_data.get('targets', '') }}</textarea>
+    <p class="helper-text" data-i18n="helper_targets_format">
+      Satır formatı: platform:tür:id (tür: page/group/self). Boş bırakırsan varsayılan hesaba paylaşır.
+    </p>
+  </div>
 
   <div class="form-actions">
     <button type="button" class="btn ghost-btn" id="btn-save-draft" data-i18n="btn_save_draft">

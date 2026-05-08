@@ -3,7 +3,7 @@
 
 <div class="form-card" style="margin-bottom:14px;">
   <h1 class="page-title" style="margin-bottom:4px;">Hesaplar</h1>
-  <p class="page-desc">Launch sürümünde sadece Facebook ve Instagram bağlantısı açık. Token ve platform ayarları <code>data/accounts.json</code> dosyasına kaydedilir.</p>
+  <p class="page-desc">Facebook ve Instagram Meta OAuth ile bağlanır. X şu an manuel token ile text-only beta olarak kullanılabilir. Token ve platform ayarları <code>data/accounts.json</code> dosyasına kaydedilir.</p>
 
   {% set msg = request.args.get('msg') %}
   {% set level = request.args.get('level', 'ok') %}
@@ -15,7 +15,7 @@
 
   <p class="small" style="margin:0 0 14px 0;">
     <span class="badge brand">Launch Scope</span>
-    Facebook + Instagram | Varsayılan bağlı hesap | Meta OAuth
+    Facebook + Instagram + X(text-only) | Varsayılan bağlı hesap | Meta OAuth + Manual X Token
   </p>
 
   {% set fb = accounts.get('facebook', {}) %}
@@ -55,7 +55,7 @@
 
 <div class="form-card" style="margin-bottom:14px;">
   <h2 style="margin-top:0;">Manuel Platform Ayarı</h2>
-  <p class="helper-text">Bu bölüm launch için sadece Facebook ve Instagram override ayarı içindir. Diğer platformlar ikinci faza bırakıldı.</p>
+  <p class="helper-text">Bu bölüm Facebook/Instagram override ve X token girişi içindir. YouTube ve TikTok için gerçek API akışı henüz tamamlanmadı.</p>
   <form method="post">
     <input type="hidden" name="action" value="upsert">
 
@@ -65,6 +65,7 @@
         <option value="">Seç...</option>
         <option value="facebook">Facebook</option>
         <option value="instagram">Instagram</option>
+        <option value="x">X</option>
       </select>
     </div>
 
@@ -96,6 +97,7 @@
 
     <div class="form-actions">
       <button type="submit" class="btn primary-btn">Kaydet</button>
+      <a class="btn" href="{{ url_for('x_test_token_route') }}">X Token Test</a>
     </div>
   </form>
 </div>
@@ -115,7 +117,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for platform in ['facebook', 'instagram'] %}
+      {% for platform in ['facebook', 'instagram', 'x'] %}
         {% set acc = accounts.get(platform, {}) %}
         {% set token = acc.page_access_token if platform == 'facebook' else acc.access_token %}
         {% set pid = acc.page_id if platform == 'facebook' else (acc.ig_business_id if platform == 'instagram' else '') %}
