@@ -56,8 +56,8 @@
   <div class="form-row">
     <label class="form-label" data-i18n="label_platforms">Platformlar</label>
     <div class="pill-group">
-      <label class="pill"><input type="checkbox" name="platforms" value="instagram" {% if 'instagram' in form_data.getlist('platforms') %}checked{% endif %}><span>Instagram</span></label>
-      <label class="pill"><input type="checkbox" name="platforms" value="facebook" {% if 'facebook' in form_data.getlist('platforms') %}checked{% endif %}><span>Facebook</span></label>
+      <label class="pill"><input type="checkbox" name="platforms" value="instagram" {% if 'instagram' in selected_platforms %}checked{% endif %}><span>Instagram</span></label>
+      <label class="pill"><input type="checkbox" name="platforms" value="facebook" {% if 'facebook' in selected_platforms %}checked{% endif %}><span>Facebook</span></label>
     </div>
     <p class="helper-text">Şu an aktif publish akışı Facebook ve Instagram için kullanılabilir.</p>
   </div>

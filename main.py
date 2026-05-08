@@ -1525,6 +1525,7 @@ def meta_select_page():
 @login_required
 def prepare():
     form_data = request.form if request.method == "POST" else {}
+    selected_platforms = request.form.getlist("platforms") if request.method == "POST" else []
     if request.method == "POST":
         action = (request.form.get("action") or "submit").strip().lower()
         schedule_mode = (request.form.get("schedule_mode") or "now").strip().lower()
@@ -1541,6 +1542,7 @@ def prepare():
                 "prepare.html",
                 form_error="Geçersiz gönderim modu seçildi.",
                 form_data=form_data,
+                selected_platforms=selected_platforms,
             ), 400
 
         media_files = request.files.getlist("media")
@@ -1566,6 +1568,7 @@ def prepare():
                 "prepare.html",
                 form_error=" ".join(errors),
                 form_data=form_data,
+                selected_platforms=selected_platforms,
             ), 400
 
         if action == "draft":
@@ -1657,7 +1660,7 @@ def prepare():
         save_json(user_file("scheduled"), scheduled)
         return redirect(url_for("tasks"))
 
-    return render_template("prepare.html", form_data=form_data)
+    return render_template("prepare.html", form_data=form_data, selected_platforms=selected_platforms)
 
 
 # -----------------------------
