@@ -146,6 +146,23 @@
     <p class="helper-text" data-i18n="helper_targets_format">
       Satır formatı: platform:tür:id (tür: page/group/self). Boş bırakırsan varsayılan hesaba paylaşır.
     </p>
+    {% if facebook_targets_note %}
+      <p class="helper-text">{{ facebook_targets_note }}</p>
+    {% endif %}
+    {% if facebook_targets %}
+      <div class="pill-group" id="facebook-target-pills" style="margin-top:10px;">
+        {% for target in facebook_targets %}
+          <button
+            type="button"
+            class="pill target-pill"
+            data-target-line="{{ target.line }}"
+            title="{{ target.id or target.kind }}"
+          >
+            <span>{{ target.label }}</span>
+          </button>
+        {% endfor %}
+      </div>
+    {% endif %}
   </div>
 
   <div class="form-actions">

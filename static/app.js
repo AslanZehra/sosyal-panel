@@ -16,6 +16,8 @@
   const mediaSelectionList = document.getElementById("media-selection-list");
   const mediaModeNote = document.getElementById("media-mode-note");
   const formatPlatformNote = document.getElementById("format-platform-note");
+  const targetsInput = document.getElementById("targets");
+  const targetPills = document.querySelectorAll(".target-pill");
 
   const stagedFiles = [];
   const canStageFiles = typeof DataTransfer !== "undefined";
@@ -253,6 +255,23 @@
     enforceFormatPlatformConstraints();
     renderStagedFiles();
   });
+
+  if (targetsInput && targetPills && targetPills.length) {
+    targetPills.forEach((pill) => {
+      pill.addEventListener("click", () => {
+        const line = (pill.getAttribute("data-target-line") || "").trim();
+        if (!line) return;
+        const existing = (targetsInput.value || "")
+          .split("\n")
+          .map((v) => v.trim())
+          .filter(Boolean);
+        if (!existing.includes(line)) {
+          existing.push(line);
+        }
+        targetsInput.value = existing.join("\n");
+      });
+    });
+  }
 
   setMediaAccept();
   enforceMediaConstraints();

@@ -918,6 +918,81 @@ def discover_pages_from_debug_targets(user_access_token: str) -> list[dict]:
     return pages
 
 
+def discover_facebook_targets(accounts: dict) -> tuple[list[dict], str]:
+    fb = accounts.get("facebook", {}) if isinstance(accounts, dict) else {}
+    page_id = (fb.get("page_id") or "").strip()
+    page_name = (fb.get("account_name") or "").strip() or "Varsayılan Sayfa"
+    user_token = (fb.get("meta_user_access_token") or "").strip()
+
+    targets: list[dict] = []
+    if page_id:
+        targets.append(
+            {
+                "platform": "facebook",
+                "kind": "self",
+                "id": "",
+                "line": "facebook:self:",
+                "label": f"Varsayılan sayfa: {page_name}",
+            }
+        )
+        targets.append(
+            {
+                "platform": "facebook",
+                "kind": "page",
+                "id": page_id,
+                "line": f"facebook:page:{page_id}",
+                "label": f"Sayfa: {page_name} ({page_id})",
+            }
+        )
+
+    if not user_token:
+        return targets, ""
+
+    try:
+        res = requests.get(
+            _meta_graph_url("/me/groups"),
+            params={
+                "fields": "id,name,privacy",
+                "access_token": user_token,
+            },
+            timeout=20,
+        )
+        payload = res.json() if res.text else {}
+        if res.status_code >= 400:
+            err = ""
+            if isinstance(payload, dict):
+                err = (payload.get("error") or {}).get("message") or ""
+            return targets, err or "Facebook grup listesi alınamadı."
+
+        data = payload.get("data") if isinstance(payload, dict) else []
+        if not isinstance(data, list):
+            return targets, ""
+
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            gid = str(item.get("id") or "").strip()
+            gname = str(item.get("name") or "").strip() or gid
+            privacy = str(item.get("privacy") or "").strip()
+            if not gid:
+                continue
+            label = f"Grup: {gname}"
+            if privacy:
+                label += f" [{privacy}]"
+            targets.append(
+                {
+                    "platform": "facebook",
+                    "kind": "group",
+                    "id": gid,
+                    "line": f"facebook:group:{gid}",
+                    "label": label,
+                }
+            )
+        return targets, ""
+    except Exception as exc:
+        return targets, f"Facebook grup listesi alınamadı: {exc}"
+
+
 def reactivate_scheduled_jobs_after_auth(accounts: dict, user_id: int | None = None) -> int:
     scheduled = load_json(user_file("scheduled", user_id), [])
     if not isinstance(scheduled, list):
@@ -1578,6 +1653,7 @@ def prepare():
     form_data = request.form if request.method == "POST" else {}
     selected_platforms = request.form.getlist("platforms") if request.method == "POST" else []
     selected_weekly_days = request.form.getlist("weekly_days") if request.method == "POST" else []
+    facebook_targets, facebook_targets_note = discover_facebook_targets(load_accounts())
     if request.method == "POST":
         action = (request.form.get("action") or "submit").strip().lower()
         schedule_mode = (request.form.get("schedule_mode") or "now").strip().lower()
@@ -1596,6 +1672,8 @@ def prepare():
                 form_data=form_data,
                 selected_platforms=selected_platforms,
                 selected_weekly_days=selected_weekly_days,
+                facebook_targets=facebook_targets,
+                facebook_targets_note=facebook_targets_note,
             ), 400
 
         media_files = request.files.getlist("media")
@@ -1623,6 +1701,8 @@ def prepare():
                 form_data=form_data,
                 selected_platforms=selected_platforms,
                 selected_weekly_days=selected_weekly_days,
+                facebook_targets=facebook_targets,
+                facebook_targets_note=facebook_targets_note,
             ), 400
 
         if action == "draft":
@@ -1683,6 +1763,8 @@ def prepare():
                     form_data=form_data,
                     selected_platforms=selected_platforms,
                     selected_weekly_days=selected_weekly_days,
+                    facebook_targets=facebook_targets,
+                    facebook_targets_note=facebook_targets_note,
                 ), 400
 
             if end_at and next_run_at > end_at:
@@ -1692,6 +1774,8 @@ def prepare():
                     form_data=form_data,
                     selected_platforms=selected_platforms,
                     selected_weekly_days=selected_weekly_days,
+                    facebook_targets=facebook_targets,
+                    facebook_targets_note=facebook_targets_note,
                 ), 400
 
             obj = {
@@ -1759,6 +1843,8 @@ def prepare():
         form_data=form_data,
         selected_platforms=selected_platforms,
         selected_weekly_days=selected_weekly_days,
+        facebook_targets=facebook_targets,
+        facebook_targets_note=facebook_targets_note,
     )
 
 
