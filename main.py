@@ -47,7 +47,7 @@ META_LOGIN_SCOPE = (
     ).strip()
     or "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
 )
-LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook", "x")
+LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook")
 LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot", "interval", "campaign", "weekly"}
 WEEKDAY_CODES = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 
@@ -728,7 +728,7 @@ def validate_post_payload(text: str, hashtags: str, platforms: list[str], fmt: s
 
     launch_blocked = [p for p in selected if p not in LAUNCH_ENABLED_PLATFORMS]
     if launch_blocked:
-        errors.append("Şu an gerçek publish akışı Facebook, Instagram ve X için açık. YouTube/TikTok henüz tamamlanmadı.")
+        errors.append("Şu an gerçek publish akışı sadece Facebook ve Instagram için açık.")
 
     if "instagram" in selected_set and not media:
         errors.append("Instagram için en az 1 foto/video seçmelisin.")

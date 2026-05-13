@@ -3,7 +3,7 @@
 
 <div class="form-card" style="margin-bottom:14px;">
   <h1 class="page-title" style="margin-bottom:4px;">Hesaplar</h1>
-  <p class="page-desc">Facebook ve Instagram Meta OAuth ile bağlanır. X şu an manuel token ile text-only beta olarak kullanılabilir. Token ve platform ayarları <code>data/accounts.json</code> dosyasına kaydedilir.</p>
+  <p class="page-desc">Bu yayın sürümünde sadece Facebook ve Instagram Meta OAuth ile bağlanır.</p>
 
   {% set msg = request.args.get('msg') %}
   {% set level = request.args.get('level', 'ok') %}
@@ -15,7 +15,7 @@
 
   <p class="small" style="margin:0 0 14px 0;">
     <span class="badge brand">Launch Scope</span>
-    Facebook + Instagram + X(text-only) | Varsayılan bağlı hesap | Meta OAuth + Manual X Token
+    Facebook + Instagram | Varsayılan bağlı hesap | Meta OAuth
   </p>
 
   {% set fb = accounts.get('facebook', {}) %}
@@ -53,55 +53,6 @@
   </div>
 </div>
 
-<div class="form-card" style="margin-bottom:14px;">
-  <h2 style="margin-top:0;">Manuel Platform Ayarı</h2>
-  <p class="helper-text">Bu bölüm Facebook/Instagram override ve X token girişi içindir. YouTube ve TikTok için gerçek API akışı henüz tamamlanmadı.</p>
-  <form method="post">
-    <input type="hidden" name="action" value="upsert">
-
-    <div class="form-row">
-      <label class="form-label" for="platform">Platform</label>
-      <select id="platform" name="platform" class="input" required>
-        <option value="">Seç...</option>
-        <option value="facebook">Facebook</option>
-        <option value="instagram">Instagram</option>
-        <option value="x">X</option>
-      </select>
-    </div>
-
-    <div class="form-row">
-      <label class="form-label" for="account_name">Hesap Adı</label>
-      <input id="account_name" name="account_name" class="input" placeholder="Sayfa adı veya kullanıcı adı" />
-    </div>
-
-    <div class="form-row">
-      <label class="form-label" for="access_token">Token</label>
-      <input id="access_token" name="access_token" class="input" placeholder="Token (opsiyonel)" />
-      <p class="helper-text">
-        Normal akış Meta ile bağlan butonudur. Bu alan sadece ileri seviye manuel müdahale için bırakıldı.
-      </p>
-    </div>
-
-    <div class="form-row">
-      <label class="form-label" for="note">Not</label>
-      <input id="note" name="note" class="input" placeholder="Opsiyonel not" />
-    </div>
-
-    <div class="form-row">
-      <label class="form-label" for="enabled">Durum</label>
-      <select id="enabled" name="enabled" class="input">
-        <option value="1">Aktif</option>
-        <option value="0">Pasif</option>
-      </select>
-    </div>
-
-    <div class="form-actions">
-      <button type="submit" class="btn primary-btn">Kaydet</button>
-      <a class="btn" href="{{ url_for('x_test_token_route') }}">X Token Test</a>
-    </div>
-  </form>
-</div>
-
 <div class="form-card">
   <h2 style="margin-top:0;">Kayıtlı Hesaplar</h2>
   <table class="table">
@@ -117,10 +68,10 @@
       </tr>
     </thead>
     <tbody>
-      {% for platform in ['facebook', 'instagram', 'x'] %}
+      {% for platform in ['facebook', 'instagram'] %}
         {% set acc = accounts.get(platform, {}) %}
         {% set token = acc.page_access_token if platform == 'facebook' else acc.access_token %}
-        {% set pid = acc.page_id if platform == 'facebook' else (acc.ig_business_id if platform == 'instagram' else '') %}
+        {% set pid = acc.page_id if platform == 'facebook' else acc.ig_business_id %}
         <tr>
           <td>{{ platform }}</td>
           <td>
