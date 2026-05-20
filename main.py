@@ -80,6 +80,7 @@ USERS_DATA_DIR.mkdir(exist_ok=True)
 
 USER_DB_FILE = ROOT_DATA_DIR / "mysocial.db"
 META_PENDING_FILE = ROOT_DATA_DIR / "meta_pending.json"
+X_PENDING_FILE = ROOT_DATA_DIR / "x_pending.json"
 
 LEGACY_SCHEDULED_FILE = ROOT_DATA_DIR / "scheduled_posts.json"
 LEGACY_DRAFTS_FILE = ROOT_DATA_DIR / "draft_posts.json"
@@ -630,6 +631,8 @@ def ensure_files():
     init_user_db()
     if not META_PENDING_FILE.exists():
         save_json(META_PENDING_FILE, {})
+    if not X_PENDING_FILE.exists():
+        save_json(X_PENDING_FILE, {})
 
 
 def infer_media_kind(filename: str) -> str:
@@ -1237,6 +1240,7 @@ def enforce_login_for_app():
         "uploaded_file",
         "meta_callback",
         "meta_select_page",
+        "x_callback",
     }:
         return None
     if current_user_id():
@@ -1565,8 +1569,15 @@ def x_start():
 
     state = uuid.uuid4().hex
     verifier = secrets.token_urlsafe(64)
-    session["x_oauth_state"] = state
-    session["x_oauth_verifier"] = verifier
+    pending = load_json(X_PENDING_FILE, {})
+    if not isinstance(pending, dict):
+        pending = {}
+    pending[state] = {
+        "created_at": _iso(_now()),
+        "user_id": current_user_id(),
+        "verifier": verifier,
+    }
+    save_json(X_PENDING_FILE, pending)
 
     params = {
         "response_type": "code",
@@ -1581,7 +1592,6 @@ def x_start():
 
 
 @app.route("/auth/x/callback")
-@login_required
 def x_callback():
     err = (request.args.get("error_description") or request.args.get("error") or "").strip()
     if err:
@@ -1589,15 +1599,18 @@ def x_callback():
 
     code = (request.args.get("code") or "").strip()
     state = (request.args.get("state") or "").strip()
-    expected_state = (session.get("x_oauth_state") or "").strip()
-    verifier = (session.get("x_oauth_verifier") or "").strip()
     redirect_uri = derive_x_redirect_uri()
+    pending = load_json(X_PENDING_FILE, {})
+    if not isinstance(pending, dict):
+        pending = {}
+    pending_state = pending.get(state) or {}
+    verifier = (pending_state.get("verifier") or "").strip()
+    target_user_id = int(pending_state.get("user_id") or 0)
+    pending.pop(state, None)
+    save_json(X_PENDING_FILE, pending)
 
-    session.pop("x_oauth_state", None)
-    session.pop("x_oauth_verifier", None)
-
-    if not code or not state or state != expected_state or not verifier:
-        return redirect(url_for("accounts", msg="X state doğrulaması başarısız oldu. Tekrar dene.", level="warn"))
+    if not code or not state or not verifier or target_user_id < 1:
+        return redirect(url_for("login", msg="X state doğrulaması başarısız oldu. Tekrar dene."))
 
     ok, token_data = exchange_x_token(
         "authorization_code",
@@ -1624,7 +1637,7 @@ def x_callback():
     if not ok:
         return redirect(url_for("accounts", msg=message, level="warn"))
 
-    accounts_data = load_accounts()
+    accounts_data = load_accounts(target_user_id)
     xcfg = accounts_data.get("x", {})
     xcfg["enabled"] = True
     xcfg["status"] = "connected"
@@ -1636,7 +1649,11 @@ def x_callback():
     xcfg["user_id"] = str(meta.get("id") or "").strip()
     xcfg["note"] = f"X user id: {xcfg['user_id'] or '-'}"
     accounts_data["x"] = xcfg
-    save_accounts(accounts_data)
+    save_accounts(accounts_data, target_user_id)
+    if current_user_id() != target_user_id:
+        user = get_user_by_id(target_user_id)
+        if user:
+            login_user_session(user)
     return redirect(url_for("accounts", msg="X hesabı bağlandı.", level="ok"))
 
 
