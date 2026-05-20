@@ -3,7 +3,7 @@
 
 <div class="form-card" style="margin-bottom:14px;">
   <h1 class="page-title" style="margin-bottom:4px;">Hesaplar</h1>
-  <p class="page-desc">Bu yayın sürümünde sadece Facebook ve Instagram Meta OAuth ile bağlanır.</p>
+  <p class="page-desc">Bu yayın sürümünde Facebook + Instagram Meta OAuth ile, X ise kendi OAuth akışıyla bağlanır.</p>
 
   {% set msg = request.args.get('msg') %}
   {% set level = request.args.get('level', 'ok') %}
@@ -15,7 +15,7 @@
 
   <p class="small" style="margin:0 0 14px 0;">
     <span class="badge brand">Launch Scope</span>
-    Facebook + Instagram | Varsayılan bağlı hesap | Meta OAuth
+    Facebook + Instagram + X(text) | Varsayılan bağlı hesap | OAuth
   </p>
 
   {% set fb = accounts.get('facebook', {}) %}
@@ -53,6 +53,42 @@
   </div>
 </div>
 
+<div class="form-card" style="margin-bottom:14px;">
+  <h2 style="margin-top:0;">X Hesabı</h2>
+  {% set x = accounts.get('x', {}) %}
+  {% if x_redirect_uri %}
+    <p class="small" style="margin:8px 0 14px 0;">
+      <span class="badge brand">X Callback</span>
+      <code>{{ x_redirect_uri }}</code>
+    </p>
+    <p class="small" style="margin:0 0 14px 0;">
+      X Developer ayarlarında callback olarak <code>{{ x_redirect_uri }}</code> ve web sitesi olarak
+      <code>{{ x_app_domain }}</code> taban adresi kullanılmalı.
+    </p>
+  {% endif %}
+  <div class="form-actions" style="justify-content:flex-start; border-top:0; padding-top:0; margin-top:0;">
+    {% if x.get('status') == 'connected' %}
+      <span class="badge ok">X bağlı: {{ x.get('account_name') or 'Hesap bağlı' }}</span>
+      {% if x.get('user_id') %}
+        <span class="badge brand">X ID: {{ x.get('user_id') }}</span>
+      {% endif %}
+      <span class="muted" style="display:inline-block;">X şu an text-only paylaşımda kullanılabilir.</span>
+      <a class="btn" href="{{ url_for('x_test_token_route') }}">X Bağlantısını Test Et</a>
+      <form method="post" style="display:inline-block;">
+        <input type="hidden" name="action" value="disconnect">
+        <input type="hidden" name="platform" value="x">
+        <button type="submit" class="btn">X Sıfırla</button>
+      </form>
+    {% elif x_oauth_ready %}
+      <a class="btn primary-btn" href="{{ url_for('x_start') }}">X ile Bağlan</a>
+      <span class="muted" style="display:inline-block;">İlk aşamada yalnızca metin paylaşımı destekleniyor.</span>
+    {% else %}
+      <span class="badge warn">X OAuth env eksik</span>
+      <span class="muted" style="display:inline-block;">X_CLIENT_ID ve X_CLIENT_SECRET girildikten sonra bağlanabilirsin.</span>
+    {% endif %}
+  </div>
+</div>
+
 <div class="form-card">
   <h2 style="margin-top:0;">Kayıtlı Hesaplar</h2>
   <table class="table">
@@ -68,10 +104,10 @@
       </tr>
     </thead>
     <tbody>
-      {% for platform in ['facebook', 'instagram'] %}
+      {% for platform in ['facebook', 'instagram', 'x'] %}
         {% set acc = accounts.get(platform, {}) %}
         {% set token = acc.page_access_token if platform == 'facebook' else acc.access_token %}
-        {% set pid = acc.page_id if platform == 'facebook' else acc.ig_business_id %}
+        {% set pid = acc.page_id if platform == 'facebook' else (acc.ig_business_id if platform == 'instagram' else acc.user_id) %}
         <tr>
           <td>{{ platform }}</td>
           <td>

@@ -13,6 +13,7 @@ import urllib.parse
 import hashlib
 import secrets
 import smtplib
+import base64
 from email.message import EmailMessage
 
 import requests
@@ -32,6 +33,15 @@ META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
 META_REDIRECT_URI = os.getenv("META_REDIRECT_URI", "").strip()
 META_GRAPH_VERSION = os.getenv("META_GRAPH_VERSION", "v19.0").strip() or "v19.0"
 X_ME_URL = (os.getenv("X_ME_URL") or "https://api.x.com/2/users/me").strip()
+X_AUTH_URL = (os.getenv("X_AUTH_URL") or "https://x.com/i/oauth2/authorize").strip()
+X_TOKEN_URL = (os.getenv("X_TOKEN_URL") or "https://api.x.com/2/oauth2/token").strip()
+X_CLIENT_ID = (os.getenv("X_CLIENT_ID") or "").strip()
+X_CLIENT_SECRET = (os.getenv("X_CLIENT_SECRET") or "").strip()
+X_REDIRECT_URI = (os.getenv("X_REDIRECT_URI") or "").strip()
+X_OAUTH_SCOPE = (
+    os.getenv("X_OAUTH_SCOPE", "tweet.read tweet.write users.read offline.access").strip()
+    or "tweet.read tweet.write users.read offline.access"
+)
 SMTP_HOST = (os.getenv("SMTP_HOST") or "").strip()
 SMTP_PORT = int((os.getenv("SMTP_PORT") or "587").strip() or "587")
 SMTP_USERNAME = (os.getenv("SMTP_USERNAME") or "").strip()
@@ -47,7 +57,7 @@ META_LOGIN_SCOPE = (
     ).strip()
     or "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
 )
-LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook")
+LAUNCH_ENABLED_PLATFORMS = ("instagram", "facebook", "x")
 LAUNCH_ENABLED_SCHEDULE_MODES = {"now", "one_shot", "interval", "campaign", "weekly"}
 WEEKDAY_CODES = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 
@@ -243,6 +253,9 @@ def default_accounts() -> dict:
             "status": "not_connected",
             "account_name": "",
             "access_token": "",
+            "refresh_token": "",
+            "expires_at": "",
+            "user_id": "",
             "note": "",
             "updated_at": "",
         },
@@ -626,6 +639,58 @@ def infer_media_kind(filename: str) -> str:
     if fn.endswith((".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic")):
         return "image"
     return "file"
+
+
+def derive_public_base_url() -> str:
+    for key in ("PUBLIC_BASE_URL", "APP_PUBLIC_URL", "NGROK_PUBLIC_URL"):
+        value = (os.getenv(key) or "").strip().rstrip("/")
+        if value:
+            return value
+
+    if META_REDIRECT_URI:
+        parsed = urllib.parse.urlparse(META_REDIRECT_URI)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+
+    return ""
+
+
+def derive_x_redirect_uri() -> str:
+    explicit = X_REDIRECT_URI.strip()
+    if explicit:
+        return explicit
+    base = derive_public_base_url()
+    if not base:
+        return ""
+    return f"{base}/auth/x/callback"
+
+
+def build_x_code_challenge(verifier: str) -> str:
+    digest = hashlib.sha256((verifier or "").encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest).decode("utf-8").rstrip("=")
+
+
+def exchange_x_token(grant_type: str, payload: dict) -> tuple[bool, dict | str]:
+    if not X_CLIENT_ID or not X_CLIENT_SECRET:
+        return False, "X OAuth env eksik: X_CLIENT_ID / X_CLIENT_SECRET gerekli."
+    try:
+        response = requests.post(
+            X_TOKEN_URL,
+            data=payload,
+            auth=(X_CLIENT_ID, X_CLIENT_SECRET),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=25,
+        )
+        data = response.json() if response.text else {}
+    except Exception as exc:
+        return False, f"X token hatası: {exc}"
+
+    if response.status_code >= 400:
+        detail = data
+        if isinstance(data, dict):
+            detail = data.get("error_description") or data.get("error") or data
+        return False, f"X token hatası: {detail}"
+    return True, data if isinstance(data, dict) else {}
 
 
 def optimize_uploaded_image(path: Path) -> None:
@@ -1435,11 +1500,17 @@ def accounts():
 
     parsed_redirect = urllib.parse.urlparse(META_REDIRECT_URI) if META_REDIRECT_URI else None
     meta_app_domain = parsed_redirect.netloc if parsed_redirect else ""
+    x_redirect_uri = derive_x_redirect_uri()
+    parsed_x_redirect = urllib.parse.urlparse(x_redirect_uri) if x_redirect_uri else None
+    x_app_domain = parsed_x_redirect.netloc if parsed_x_redirect else ""
     return render_template(
         "accounts.html",
         accounts=data,
         meta_redirect_uri=META_REDIRECT_URI,
         meta_app_domain=meta_app_domain,
+        x_redirect_uri=x_redirect_uri,
+        x_app_domain=x_app_domain,
+        x_oauth_ready=bool(X_CLIENT_ID and X_CLIENT_SECRET and x_redirect_uri),
     )
 
 
@@ -1477,6 +1548,96 @@ def x_test_token_route():
     accounts_data["x"] = xcfg
     save_accounts(accounts_data)
     return redirect(url_for("accounts", msg=message, level="ok" if ok else "warn"))
+
+
+@app.route("/auth/x/start")
+@login_required
+def x_start():
+    redirect_uri = derive_x_redirect_uri()
+    if not X_CLIENT_ID or not X_CLIENT_SECRET or not redirect_uri:
+        return redirect(
+            url_for(
+                "accounts",
+                msg="X OAuth env eksik: X_CLIENT_ID, X_CLIENT_SECRET ve redirect URL gerekli.",
+                level="warn",
+            )
+        )
+
+    state = uuid.uuid4().hex
+    verifier = secrets.token_urlsafe(64)
+    session["x_oauth_state"] = state
+    session["x_oauth_verifier"] = verifier
+
+    params = {
+        "response_type": "code",
+        "client_id": X_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "scope": X_OAUTH_SCOPE,
+        "state": state,
+        "code_challenge": build_x_code_challenge(verifier),
+        "code_challenge_method": "S256",
+    }
+    return redirect(f"{X_AUTH_URL}?{urllib.parse.urlencode(params)}")
+
+
+@app.route("/auth/x/callback")
+@login_required
+def x_callback():
+    err = (request.args.get("error_description") or request.args.get("error") or "").strip()
+    if err:
+        return redirect(url_for("accounts", msg=f"X login hatası: {err}", level="warn"))
+
+    code = (request.args.get("code") or "").strip()
+    state = (request.args.get("state") or "").strip()
+    expected_state = (session.get("x_oauth_state") or "").strip()
+    verifier = (session.get("x_oauth_verifier") or "").strip()
+    redirect_uri = derive_x_redirect_uri()
+
+    session.pop("x_oauth_state", None)
+    session.pop("x_oauth_verifier", None)
+
+    if not code or not state or state != expected_state or not verifier:
+        return redirect(url_for("accounts", msg="X state doğrulaması başarısız oldu. Tekrar dene.", level="warn"))
+
+    ok, token_data = exchange_x_token(
+        "authorization_code",
+        {
+            "code": code,
+            "grant_type": "authorization_code",
+            "client_id": X_CLIENT_ID,
+            "redirect_uri": redirect_uri,
+            "code_verifier": verifier,
+        },
+    )
+    if not ok:
+        return redirect(url_for("accounts", msg=str(token_data), level="warn"))
+
+    access_token = (token_data.get("access_token") or "").strip()
+    refresh_token = (token_data.get("refresh_token") or "").strip()
+    expires_in = int(token_data.get("expires_in") or 0)
+    expires_at = _iso(_now() + dt.timedelta(seconds=max(0, expires_in))) if expires_in else ""
+
+    if not access_token:
+        return redirect(url_for("accounts", msg="X access token alınamadı.", level="warn"))
+
+    ok, message, meta = test_x_token(access_token)
+    if not ok:
+        return redirect(url_for("accounts", msg=message, level="warn"))
+
+    accounts_data = load_accounts()
+    xcfg = accounts_data.get("x", {})
+    xcfg["enabled"] = True
+    xcfg["status"] = "connected"
+    xcfg["access_token"] = access_token
+    xcfg["refresh_token"] = refresh_token
+    xcfg["expires_at"] = expires_at
+    xcfg["updated_at"] = _iso(_now())
+    xcfg["account_name"] = (meta.get("username") or meta.get("name") or xcfg.get("account_name") or "").strip()
+    xcfg["user_id"] = str(meta.get("id") or "").strip()
+    xcfg["note"] = f"X user id: {xcfg['user_id'] or '-'}"
+    accounts_data["x"] = xcfg
+    save_accounts(accounts_data)
+    return redirect(url_for("accounts", msg="X hesabı bağlandı.", level="ok"))
 
 
 # -----------------------------

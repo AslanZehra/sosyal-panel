@@ -37,6 +37,9 @@ ACTIVE_USER_ID = ""
 
 META_GRAPH_VERSION = os.getenv("META_GRAPH_VERSION", "v19.0").strip() or "v19.0"
 X_POST_URL = (os.getenv("X_POST_URL") or "https://api.x.com/2/tweets").strip()
+X_TOKEN_URL = (os.getenv("X_TOKEN_URL") or "https://api.x.com/2/oauth2/token").strip()
+X_CLIENT_ID = (os.getenv("X_CLIENT_ID") or "").strip()
+X_CLIENT_SECRET = (os.getenv("X_CLIENT_SECRET") or "").strip()
 MAX_ATTEMPTS = 5
 NEEDS_AUTH_RETRY_MINUTES = 15
 ERROR_RETRY_STEPS_MINUTES = [1, 2, 4, 8, 15]
@@ -248,6 +251,52 @@ def next_error_retry_minutes(attempts: int) -> int:
     return int(ERROR_RETRY_STEPS_MINUTES[idx])
 
 
+def refresh_x_access_token(accounts: dict) -> tuple[bool, str]:
+    cfg = accounts.get("x") or {}
+    refresh_token = (cfg.get("refresh_token") or "").strip()
+    if not refresh_token:
+        return False, "needs_auth: x refresh_token eksik"
+    if not X_CLIENT_ID or not X_CLIENT_SECRET:
+        return False, "needs_config: X_CLIENT_ID / X_CLIENT_SECRET gerekli"
+
+    try:
+        res = requests.post(
+            X_TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": X_CLIENT_ID,
+            },
+            auth=(X_CLIENT_ID, X_CLIENT_SECRET),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=25,
+        )
+        payload = res.json() if res.text else {}
+    except Exception as exc:
+        return False, f"publish_error: x token refresh hatası: {exc}"
+
+    if res.status_code >= 400:
+        detail = payload
+        if isinstance(payload, dict):
+            detail = payload.get("error_description") or payload.get("error") or payload
+        return False, f"needs_auth: x token refresh başarısız: {detail}"
+
+    access_token = (payload.get("access_token") or "").strip()
+    if not access_token:
+        return False, "needs_auth: x token refresh access_token dönmedi"
+
+    expires_in = int(payload.get("expires_in") or 0)
+    cfg["access_token"] = access_token
+    cfg["refresh_token"] = (payload.get("refresh_token") or refresh_token).strip()
+    cfg["expires_at"] = iso(now() + dt.timedelta(seconds=max(0, expires_in))) if expires_in else ""
+    cfg["status"] = "connected"
+    cfg["enabled"] = True
+    cfg["updated_at"] = iso(now())
+    accounts["x"] = cfg
+    save_json(ACCOUNTS_FILE, accounts)
+    return True, access_token
+
+
 def get_public_base_url() -> str:
     for key in ("PUBLIC_BASE_URL", "APP_PUBLIC_URL", "NGROK_PUBLIC_URL"):
         value = (os.getenv(key) or "").strip().rstrip("/")
@@ -376,6 +425,9 @@ def default_accounts() -> dict:
             "status": "not_connected",
             "account_name": "",
             "access_token": "",
+            "refresh_token": "",
+            "expires_at": "",
+            "user_id": "",
             "note": "",
             "updated_at": "",
         },
@@ -811,6 +863,13 @@ def publish_instagram(item: dict, accounts: dict) -> tuple[bool, str]:
 def publish_x(item: dict, accounts: dict) -> tuple[bool, str]:
     cfg = accounts.get("x") or {}
     raw_token = (cfg.get("access_token") or "").strip()
+    expires_at = parse_iso(cfg.get("expires_at") or "")
+    if (not raw_token or (expires_at and expires_at <= now() + dt.timedelta(minutes=2))) and (cfg.get("refresh_token") or "").strip():
+        ok, refreshed = refresh_x_access_token(accounts)
+        if not ok:
+            return False, refreshed
+        raw_token = refreshed
+
     if not raw_token:
         return False, "needs_auth: x access_token eksik"
 
